@@ -1,6 +1,6 @@
 {
-  "name": "Cake Defense: Ant Rush",
-  "short_name": "Ant Rush",
+  "name": "Cake Defense: Hybrid PWA",
+  "short_name": "CakeDefense",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#121212",

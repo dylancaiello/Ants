@@ -1,9 +1,8 @@
-const CACHE = 'cake-defense-ant-rush-v1';
+// Hybrid PWA SW v2 (cache bump to force update)
+const CACHE = 'cake-defense-hybrid-v2';
 const ASSETS = [
   './',
   './index.html',
-  './style.css',
-  './main.js',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'
