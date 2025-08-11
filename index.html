@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Cake Defense: Ant Rush</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="theme-color" content="#121212">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="wrapper">
+    <canvas id="game" aria-label="Cake Defense game canvas"></canvas>
+    <div id="ui">
+      <div id="topbar">
+        <div id="wave">Wave 1</div>
+        <div id="ants">Ants: 0</div>
+        <div id="hp">Cake: 3</div>
+      </div>
+      <button id="startBtn" class="btn">Tap to Start</button>
+      <div id="hint">Protect the cake. Tap ants before they reach the center.</div>
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    }
+  </script>
+  <script src="main.js"></script>
+</body>
+</html>
