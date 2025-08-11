@@ -1,5 +1,5 @@
-// Hybrid PWA SW v2 (cache bump to force update)
-const CACHE = 'cake-defense-hybrid-v2';
+// Hybrid PWA SW v3 (cache bump for GH Pages)
+const CACHE = 'cake-defense-hybrid-v3';
 const ASSETS = [
   './',
   './index.html',
