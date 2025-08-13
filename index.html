@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Ants — v5 DEBUG</title>
+  <title>Ants — v6 staggered spawns DEBUG</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#121212">
   <style>
@@ -68,8 +68,36 @@
     let running=false, gameOver=false, wave=1, cakeHP=3;
     const ants=[]; const ANT_RADIUS=14; const TAP_RADIUS=28;
 
-    function reset(){ running=true; gameOver=false; wave=1; cakeHP=3; ants.length=0; spawnWave(wave); updateHUD(); log('reset -> wave',wave,'ants',ants.length); }
-    function spawnWave(n){ const count = n===1?10:Math.floor(10+(n-1)*1.5); for(let i=0;i<count;i++) ants.push(makeAnt()); }
+    // v6 spawn scheduler
+    let waveTotal=10;        // total ants for current wave
+    let spawned=0;           // how many spawned so far
+    let spawnTimer=0.5;      // seconds until next spawn (randomized after each spawn)
+
+    function reset(){ running=true; gameOver=false; wave=1; cakeHP=3; ants.length=0;
+      waveTotal=10; spawned=0; spawnTimer=0.4+Math.random()*0.4;
+      updateHUD(); log('reset -> wave',wave,'waveTotal',waveTotal);
+    }
+
+    function spawnBurst(){ // 1 most of the time, sometimes 2-3
+      const remaining = waveTotal - spawned;
+      if (remaining <= 0) return;
+      const pool = [1,1,1,1,2,2,3]; // ~57% 1, ~28% 2, ~14% 3
+      let count = pool[Math.floor(Math.random()*pool.length)];
+      count = Math.min(count, remaining);
+      for (let i=0;i<count;i++) ants.push(makeAnt());
+      spawned += count;
+      log('spawn', count, 'spawned', spawned, 'of', waveTotal);
+      spawnTimer = 0.35 + Math.random()*0.75; // 0.35–1.1s between bursts
+    }
+
+    function spawnWaveIfNeeded(dt){ // tick each frame
+      if (!running || gameOver) return;
+      if (spawned < waveTotal) {
+        spawnTimer -= dt;
+        if (spawnTimer <= 0) spawnBurst();
+      }
+    }
+
     function makeAnt(){ const ang=Math.random()*Math.PI*2; const spawnR=arenaRadius+40+Math.random()*30; const x=CX+Math.cos(ang)*spawnR; const y=CY+Math.sin(ang)*spawnR; const speed=70+Math.random()*40+wave*6; return {x,y,angle:ang,speed,alive:true}; }
     function updateHUD(){ waveEl.textContent=`Wave ${wave}`; antsEl.textContent=`Ants: ${ants.filter(a=>a.alive).length}`; hpEl.textContent=`Cake: ${cakeHP}`; }
 
@@ -83,14 +111,17 @@
 
     startBtn.addEventListener('click',()=>{ log('startBtn click', 'running', running, 'gameOver', gameOver);
       if(!running && !gameOver){ startBtn.style.display='none'; reset(); }
-      else if(gameOver && cakeHP>0){ gameOver=false; running=true; spawnWave(++wave); updateHUD(); startBtn.style.display='none'; }
+      else if(gameOver && cakeHP>0){ gameOver=false; running=true; // next wave
+        wave++; waveTotal=Math.floor(10+(wave-1)*1.5); spawned=0; spawnTimer=0.35+Math.random()*0.4;
+        updateHUD(); startBtn.style.display='none';
+      }
       else if(gameOver && cakeHP<=0){ startBtn.style.display='none'; reset(); }
     });
 
     let last=performance.now();
     function frame(now){ const dt=Math.min(0.03,(now-last)/1000); last=now;
       drawBackground(); drawArena(); drawCake();
-      if(running&&!gameOver){ tickAnts(dt); }
+      if(running&&!gameOver){ spawnWaveIfNeeded(dt); tickAnts(dt); }
       drawAnts(); requestAnimationFrame(frame);
     } requestAnimationFrame(frame);
 
@@ -103,8 +134,10 @@
       for(let i=0;i<=16;i++){ const ang=(i/16)*Math.PI*2; const rr=r+Math.sin(i*0.7)*2; const x=CX+Math.cos(ang)*rr; const y=CY+Math.sin(ang)*rr; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.closePath(); ctx.stroke(); }
     function tickAnts(dt){ for(const a of ants){ if(!a.alive) continue; const dx=CX-a.x, dy=CY-a.y; const len=Math.hypot(dx,dy)||1; a.x+= (dx/len)*a.speed*dt; a.y+=(dy/len)*a.speed*dt;
         const d=Math.hypot(a.x-CX,a.y-CY); if(d<=36){ a.alive=false; cakeHP--; showToast('They got a bite!'); if(cakeHP<=0){ gameOver=true; running=false; startBtn.textContent='Restart'; startBtn.style.display='block'; } }
-      } const alive=ants.filter(a=>a.alive).length;
-      if(alive===0 && cakeHP>0){ gameOver=true; running=false; startBtn.textContent='Next Wave'; startBtn.style.display='block'; showToast('Wave cleared'); updateHUD(); }
+      }
+      const alive=ants.filter(a=>a.alive).length;
+      // Wave ends only after all ants have been spawned AND none are alive
+      if(alive===0 && spawned>=waveTotal && cakeHP>0){ gameOver=true; running=false; startBtn.textContent='Next Wave'; startBtn.style.display='block'; showToast('Wave cleared'); updateHUD(); }
       updateHUD(); }
     function drawAnts(){ for(const a of ants){ if(!a.alive) continue; const b=ANT_RADIUS; ctx.fillStyle='#2b2b2b';
         ctx.beginPath(); ctx.ellipse(a.x,a.y,b*0.55,b*0.4,0,0,Math.PI*2); ctx.fill();
