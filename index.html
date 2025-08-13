@@ -3,21 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Ants — v6 staggered spawns DEBUG</title>
+  <title>Ants — v6.1 assets DEBUG</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#121212">
   <style>
-    *{box-sizing:border-box}
-    html,body{margin:0;height:100%;background:#121212;color:#f6f6f6;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+    *{box-sizing:border-box} html,body{margin:0;height:100%;background:#121212;color:#f6f6f6;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
     #wrapper{position:relative;height:100vh;width:100vw;overflow:hidden}
     #game{display:block;width:100vw;height:100vh;touch-action:none;outline:none;background:#101114}
     #ui{position:absolute;inset:0;z-index:2;pointer-events:none}
     #topbar{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:8px;justify-content:space-between;align-items:center;font-weight:700;text-shadow:0 2px 4px rgba(0,0,0,.35)}
     .btn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px 18px;border:0;border-radius:12px;background:#4caf50;color:#fff;font-weight:700;font-size:18px;pointer-events:auto;cursor:pointer}
     #hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);opacity:.9;font-size:14px;text-align:center;max-width:92vw}
-    .toast{position:absolute;left:50%;top:18%;transform:translateX(-50%);padding:10px 12px;background:#222;border-radius:10px;border:1px solid #3a3a3a;font-size:14px;opacity:0;transition:opacity .3s}
+    .toast{position:absolute;left:50%;top:18%;transform:translateX(-50%);padding:10px 12px;background:#222;border-radius:10px;border:1px solid #3a3a3a;font-size:14px;opacity:0;transition:opacity .25s}
     .toast.show{opacity:1}
-    #debug{position:absolute;left:8px;bottom:8px;z-index:3;background:rgba(0,0,0,.55);border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;max-width:92vw;white-space:pre-wrap}
+    #debug{position:absolute;left:8px;bottom:8px;z-index:3;background:rgba(0,0,0,.55);border:1px solid #444;border-radius:8px;padding:8px 10px;font:12px/1.3 ui-monospace, Menlo, Consolas, monospace;max-width:92vw;white-space:pre-wrap}
 
   </style>
 </head>
@@ -37,116 +36,55 @@
     <div id="debug">[init] JS loaded
 </div>
   </div>
+  <script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));}</script>
   <script>
-  if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js')); }
-  </script>
-  <script>
-  (() => {
+  (()=>{
     const debug=document.getElementById('debug');const log=(...a)=>{if(debug){debug.textContent+=a.join(' ')+'\n';}console.log('[Ants]',...a);};window.onerror=(m,s,l,c,e)=>{log('ERROR:',m,'@',s,l+':'+c)};
-    const DPR = Math.min(3, window.devicePixelRatio || 1);
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d', { alpha: false });
-    const startBtn = document.getElementById('startBtn');
-    const waveEl = document.getElementById('wave');
-    const antsEl = document.getElementById('ants');
-    const hpEl = document.getElementById('hp');
-    const toast = document.getElementById('toast');
+    const DPR=Math.min(3,devicePixelRatio||1);
+    const canvas=document.getElementById('game');
+    const ctx=canvas.getContext('2d',{alpha:false});
+    const startBtn=document.getElementById('startBtn');
+    const waveEl=document.getElementById('wave');
+    const antsEl=document.getElementById('ants');
+    const hpEl=document.getElementById('hp');
+    const toast=document.getElementById('toast');
 
-    let W=0,H=0,CX=0,CY=0; let arenaRadius=0;
-    function resize() {
-      W = Math.floor(window.innerWidth); H = Math.floor(window.innerHeight);
-      CX = W*0.5; CY = H*0.5;
-      canvas.width = W*DPR; canvas.height = H*DPR;
-      canvas.style.width=W+'px'; canvas.style.height=H+'px';
-      ctx.setTransform(DPR,0,0,DPR,0,0);
-      arenaRadius = Math.min(W,H)*0.42;
-      log('resize',W,H,'arena',arenaRadius.toFixed(1));
-    }
-    window.addEventListener('resize', resize, { passive: true });
-    resize();
+    // Load assets
+    const antImg=new Image(); antImg.src='assets/ant.png';
+    const cakeImg=new Image(); cakeImg.src='assets/cake.png';
+
+    let W=0,H=0,CX=0,CY=0, arenaRadius=0;
+    function resize(){W=innerWidth;H=innerHeight;CX=W*0.5;CY=H*0.5;canvas.width=W*DPR;canvas.height=H*DPR;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);arenaRadius=Math.min(W,H)*0.42;log('resize',W,H,'arena',arenaRadius.toFixed(1));}
+    addEventListener('resize',resize,{passive:true}); resize();
 
     let running=false, gameOver=false, wave=1, cakeHP=3;
-    const ants=[]; const ANT_RADIUS=14; const TAP_RADIUS=28;
+    const ants=[]; const TAP_RADIUS=32;
 
-    // v6 spawn scheduler
-    let waveTotal=10;        // total ants for current wave
-    let spawned=0;           // how many spawned so far
-    let spawnTimer=0.5;      // seconds until next spawn (randomized after each spawn)
+    // staggered wave spawns
+    let waveTotal=10, spawned=0, spawnTimer=0.4+Math.random()*0.4;
+    function reset(){running=true;gameOver=false;wave=1;cakeHP=3;ants.length=0;waveTotal=10;spawned=0;spawnTimer=0.35+Math.random()*0.4;updateHUD();log('reset -> wave',wave,'waveTotal',waveTotal);}
+    function spawnBurst(){const remaining=waveTotal-spawned;if(remaining<=0)return;const pool=[1,1,1,1,2,2,3];let count=pool[(Math.random()*pool.length)|0];count=Math.min(count,remaining);for(let i=0;i<count;i++)ants.push(makeAnt());spawned+=count;log('spawn',count,'spawned',spawned,'of',waveTotal);spawnTimer=0.35+Math.random()*0.75;}
+    function spawnWaveIfNeeded(dt){if(!running||gameOver)return;if(spawned<waveTotal){spawnTimer-=dt;if(spawnTimer<=0)spawnBurst();}}
 
-    function reset(){ running=true; gameOver=false; wave=1; cakeHP=3; ants.length=0;
-      waveTotal=10; spawned=0; spawnTimer=0.4+Math.random()*0.4;
-      updateHUD(); log('reset -> wave',wave,'waveTotal',waveTotal);
-    }
+    function makeAnt(){const ang=Math.random()*Math.PI*2;const r=arenaRadius+40+Math.random()*30;const x=CX+Math.cos(ang)*r;const y=CY+Math.sin(ang)*r;const speed=70+Math.random()*40+wave*6;return{x,y,angle:Math.atan2(CY-y,CX-x),speed,alive:true};} // angle faces center
 
-    function spawnBurst(){ // 1 most of the time, sometimes 2-3
-      const remaining = waveTotal - spawned;
-      if (remaining <= 0) return;
-      const pool = [1,1,1,1,2,2,3]; // ~57% 1, ~28% 2, ~14% 3
-      let count = pool[Math.floor(Math.random()*pool.length)];
-      count = Math.min(count, remaining);
-      for (let i=0;i<count;i++) ants.push(makeAnt());
-      spawned += count;
-      log('spawn', count, 'spawned', spawned, 'of', waveTotal);
-      spawnTimer = 0.35 + Math.random()*0.75; // 0.35–1.1s between bursts
-    }
+    function updateHUD(){waveEl.textContent=`Wave ${wave}`;antsEl.textContent=`Ants: ${ants.filter(a=>a.alive).length}`;hpEl.textContent=`Cake: ${cakeHP}`; }
 
-    function spawnWaveIfNeeded(dt){ // tick each frame
-      if (!running || gameOver) return;
-      if (spawned < waveTotal) {
-        spawnTimer -= dt;
-        if (spawnTimer <= 0) spawnBurst();
-      }
-    }
+    function handlePointer(e){const r=canvas.getBoundingClientRect();const px=(e.clientX-r.left);const py=(e.clientY-r.top);log('tap',px|0,py|0,'running',running,'gameOver',gameOver);if(!running||gameOver)return;let hit=false;for(const a of ants){if(!a.alive)continue;const dx=a.x-px,dy=a.y-py;if(dx*dx+dy*dy<=TAP_RADIUS*TAP_RADIUS){a.alive=false;hit=true;}}if(hit)showToast('Splat!');updateHUD();}
+    canvas.addEventListener('pointerdown',(e)=>{e.preventDefault();handlePointer(e);},{passive:false});
 
-    function makeAnt(){ const ang=Math.random()*Math.PI*2; const spawnR=arenaRadius+40+Math.random()*30; const x=CX+Math.cos(ang)*spawnR; const y=CY+Math.sin(ang)*spawnR; const speed=70+Math.random()*40+wave*6; return {x,y,angle:ang,speed,alive:true}; }
-    function updateHUD(){ waveEl.textContent=`Wave ${wave}`; antsEl.textContent=`Ants: ${ants.filter(a=>a.alive).length}`; hpEl.textContent=`Cake: ${cakeHP}`; }
-
-    function handlePointer(e){ const r=canvas.getBoundingClientRect(); const px=(e.clientX-r.left); const py=(e.clientY-r.top);
-      log('tap',Math.round(px),Math.round(py),'running',running,'gameOver',gameOver);
-      if(!running||gameOver) return;
-      let hit=false; for(const a of ants){ if(!a.alive) continue; const dx=a.x-px, dy=a.y-py; if(dx*dx+dy*dy<=TAP_RADIUS*TAP_RADIUS){ a.alive=false; hit=true; } }
-      if(hit) showToast('Splat!'); updateHUD();
-    }
-    canvas.addEventListener('pointerdown',(e)=>{ e.preventDefault(); handlePointer(e); },{passive:false});
-
-    startBtn.addEventListener('click',()=>{ log('startBtn click', 'running', running, 'gameOver', gameOver);
-      if(!running && !gameOver){ startBtn.style.display='none'; reset(); }
-      else if(gameOver && cakeHP>0){ gameOver=false; running=true; // next wave
-        wave++; waveTotal=Math.floor(10+(wave-1)*1.5); spawned=0; spawnTimer=0.35+Math.random()*0.4;
-        updateHUD(); startBtn.style.display='none';
-      }
-      else if(gameOver && cakeHP<=0){ startBtn.style.display='none'; reset(); }
-    });
+    startBtn.addEventListener('click',()=>{log('startBtn click','running',running,'gameOver',gameOver);if(!running&&!gameOver){startBtn.style.display='none';reset();}else if(gameOver&&cakeHP>0){gameOver=false;running=true;wave++;waveTotal=Math.floor(10+(wave-1)*1.5);spawned=0;spawnTimer=0.35+Math.random()*0.4;updateHUD();startBtn.style.display='none';}else if(gameOver&&cakeHP<=0){startBtn.style.display='none';reset();}});
 
     let last=performance.now();
-    function frame(now){ const dt=Math.min(0.03,(now-last)/1000); last=now;
-      drawBackground(); drawArena(); drawCake();
-      if(running&&!gameOver){ spawnWaveIfNeeded(dt); tickAnts(dt); }
-      drawAnts(); requestAnimationFrame(frame);
-    } requestAnimationFrame(frame);
+    function frame(now){const dt=Math.min(0.03,(now-last)/1000);last=now;drawBG();drawArena();drawCake();if(running&&!gameOver){spawnWaveIfNeeded(dt);tickAnts(dt);}drawAnts();requestAnimationFrame(frame);}
+    requestAnimationFrame(frame);
 
-    function drawBackground(){ ctx.fillStyle='#101114'; ctx.fillRect(0,0,W,H);
-      ctx.globalAlpha=0.06; for(let i=0;i<12;i++){ ctx.fillStyle=i%2?'#1a1c1f':'#15171a'; ctx.fillRect(0,i*(H/12),W,H/12); } ctx.globalAlpha=1; }
-    function drawArena(){ ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(CX,CY,arenaRadius,0,Math.PI*2); ctx.stroke(); }
-    function drawCake(){ const r=28; ctx.fillStyle='#e0e0e0'; ctx.beginPath(); ctx.arc(CX,CY,r+10,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#f7c4c4'; ctx.beginPath(); ctx.arc(CX,CY,r,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#b84a4a'; ctx.lineWidth=3; ctx.beginPath();
-      for(let i=0;i<=16;i++){ const ang=(i/16)*Math.PI*2; const rr=r+Math.sin(i*0.7)*2; const x=CX+Math.cos(ang)*rr; const y=CY+Math.sin(ang)*rr; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.closePath(); ctx.stroke(); }
-    function tickAnts(dt){ for(const a of ants){ if(!a.alive) continue; const dx=CX-a.x, dy=CY-a.y; const len=Math.hypot(dx,dy)||1; a.x+= (dx/len)*a.speed*dt; a.y+=(dy/len)*a.speed*dt;
-        const d=Math.hypot(a.x-CX,a.y-CY); if(d<=36){ a.alive=false; cakeHP--; showToast('They got a bite!'); if(cakeHP<=0){ gameOver=true; running=false; startBtn.textContent='Restart'; startBtn.style.display='block'; } }
-      }
-      const alive=ants.filter(a=>a.alive).length;
-      // Wave ends only after all ants have been spawned AND none are alive
-      if(alive===0 && spawned>=waveTotal && cakeHP>0){ gameOver=true; running=false; startBtn.textContent='Next Wave'; startBtn.style.display='block'; showToast('Wave cleared'); updateHUD(); }
-      updateHUD(); }
-    function drawAnts(){ for(const a of ants){ if(!a.alive) continue; const b=ANT_RADIUS; ctx.fillStyle='#2b2b2b';
-        ctx.beginPath(); ctx.ellipse(a.x,a.y,b*0.55,b*0.4,0,0,Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.ellipse(a.x+Math.cos(a.angle)*10,a.y+Math.sin(a.angle)*10,b*0.25,b*0.22,0,0,Math.PI*2); ctx.fill();
-        ctx.strokeStyle='#3a3a3a'; ctx.lineWidth=2;
-        for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(a.x-8,a.y+i*6); ctx.lineTo(a.x-14,a.y+i*10); ctx.stroke();
-                                  ctx.beginPath(); ctx.moveTo(a.x+8,a.y+i*6); ctx.lineTo(a.x+14,a.y+i*10); ctx.stroke(); }
-      } }
-    let toastTimer=0; function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toast.classList.remove('show'),600); log('toast:',msg); }
+    function drawBG(){ctx.fillStyle='#101114';ctx.fillRect(0,0,W,H);ctx.globalAlpha=0.06;for(let i=0;i<12;i++){ctx.fillStyle=i%2?'#1a1c1f':'#15171a';ctx.fillRect(0,i*(H/12),W,H/12);}ctx.globalAlpha=1;}
+    function drawArena(){ctx.strokeStyle='#2a2a2a';ctx.lineWidth=2;ctx.beginPath();ctx.arc(CX,CY,arenaRadius,0,Math.PI*2);ctx.stroke();}
+    function drawCake(){const size=Math.min(150, max(100, Math.min(W,H)*0.18));ctx.drawImage(cakeImg,CX-size/2,CY-size/2,size,size);}
+    function tickAnts(dt){for(const a of ants){if(!a.alive)continue;const dx=CX-a.x,dy=CY-a.y;const len=Math.hypot(dx,dy)||1;a.x+=(dx/len)*a.speed*dt;a.y+=(dy/len)*a.speed*dt;a.angle=Math.atan2(dy,dx);const d=Math.hypot(a.x-CX,a.y-CY);if(d<=36){a.alive=false;cakeHP--;showToast('They got a bite!');if(cakeHP<=0){gameOver=true;running=false;startBtn.textContent='Restart';startBtn.style.display='block';}}}
+    function drawAnts(){for(const a of ants){if(!a.alive)continue;const s=64;ctx.save();ctx.translate(a.x,a.y);ctx.rotate(a.angle+Math.PI/2);ctx.drawImage(antImg,-s/2,-s/2,s,s);ctx.restore();}}
+    function showToast(msg){toast.textContent=msg;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),600);log('toast:',msg);}
   })();
   </script>
 </body>
