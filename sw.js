@@ -1,5 +1,5 @@
-// SW v6.1 DEBUG (cache bump)
-const CACHE='ants-v6.1-DEBUG';
+// SW v6.2 DEBUG (cache bump)
+const CACHE='ants-v6.2-DEBUG';
 const ASSETS=['./','./index.html','./manifest.json','./assets/ant.png','./assets/cake.png','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));});
 self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim());});
