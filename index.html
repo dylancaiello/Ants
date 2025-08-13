@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Ants — v6.2 assets DEBUG</title>
+  <title>Ants — v6.3 DEBUG</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#121212">
   <style>
@@ -33,13 +33,18 @@
       <div id="hint">Protect the cake. Tap ants before they reach the center.</div>
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
+    <div style="position:absolute;right:8px;bottom:8px;z-index:3;background:#0008;color:#fff;padding:4px 8px;border-radius:8px;font:12px/1.2 ui-monospace;">v6.3 DEBUG</div>
     <div id="debug">[init] JS loaded
 </div>
   </div>
-  <script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));}</script>
+  <script>
+  // Register a NEW service worker filename to avoid old SW cache control
+  if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw-v63.js'));}
+  </script>
   <script>
   (()=>{
     const debug=document.getElementById('debug');const log=(...a)=>{if(debug){debug.textContent+=a.join(' ')+'\n';}console.log('[Ants]',...a);};window.onerror=(m,s,l,c,e)=>{log('ERROR:',m,'@',s,l+':'+c);};
+    log('v6.3 DEBUG boot');
     const DPR=Math.min(3,devicePixelRatio||1);
     const canvas=document.getElementById('game');
     const ctx=canvas.getContext('2d',{alpha:false});
@@ -52,6 +57,8 @@
     // Load assets
     const antImg=new Image(); antImg.src='assets/ant.png';
     const cakeImg=new Image(); cakeImg.src='assets/cake.png';
+    antImg.onload=()=>log('ant.png loaded', antImg.width+'x'+antImg.height);
+    cakeImg.onload=()=>log('cake.png loaded', cakeImg.width+'x'+cakeImg.height);
 
     let W=0,H=0,CX=0,CY=0, arenaRadius=0;
     function resize(){W=innerWidth;H=innerHeight;CX=W*0.5;CY=H*0.5;canvas.width=W*DPR;canvas.height=H*DPR;canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);arenaRadius=Math.min(W,H)*0.42;log('resize',W,H,'arena',arenaRadius.toFixed(1));}
