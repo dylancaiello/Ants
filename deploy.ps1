@@ -5,17 +5,19 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$ProgressPreference    = 'SilentlyContinue'
 
 function Fail($msg){ Write-Host "`nERROR: $msg" -ForegroundColor Red; exit 1 }
 function Info($msg){ Write-Host "[deploy] $msg" -ForegroundColor Cyan }
 function Warn($msg){ Write-Host "[deploy] $msg" -ForegroundColor Yellow }
 
 # Resolve & validate inputs
-$ZipPath = (Resolve-Path $ZipPath).Path
-if (-not (Test-Path -LiteralPath $ZipPath -PathType Leaf)) { Fail "Zip not found: $ZipPath" }
+try {
+  $ZipPath = (Resolve-Path $ZipPath).Path
+} catch { Fail "Zip not found: $ZipPath" }
 if ([IO.Path]::GetExtension($ZipPath).ToLower() -ne ".zip") { Fail "Not a .zip file: $ZipPath" }
 
-# Repo root = folder containing this script
+# Repo root = folder containing this script (must be a git repo)
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not (Test-Path (Join-Path $RepoRoot ".git"))) { Fail "No .git folder at $RepoRoot" }
 
@@ -23,9 +25,14 @@ if (-not (Test-Path (Join-Path $RepoRoot ".git"))) { Fail "No .git folder at $Re
 $Staging = Join-Path ([IO.Path]::GetTempPath()) ("ants_deploy_" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $Staging | Out-Null
 
-# Extract ZIP to staging
+# Extract ZIP to staging (try Expand-Archive, then .NET ZipFile)
 Info "Extracting $ZipPath"
-Expand-Archive -Path $ZipPath -DestinationPath $Staging -Force
+try {
+  Expand-Archive -Path $ZipPath -DestinationPath $Staging -Force
+} catch {
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  [System.IO.Compression.ZipFile]::ExtractToDirectory($ZipPath, $Staging)
+}
 
 # Find the folder that CONTAINS index.html (works for root or nested)
 $IndexFile = Get-ChildItem -LiteralPath $Staging -Recurse -File -Filter 'index.html' | Select-Object -First 1
@@ -33,7 +40,7 @@ if (-not $IndexFile) { Fail "Package missing index.html" }
 $PkgDir = Split-Path -Parent $IndexFile.FullName
 Info "Package folder: $PkgDir"
 
-# Read VERSION.txt (optional)
+# Read VERSION.txt (optional, first line only)
 $Version = $null
 $VersionFile = Join-Path $PkgDir "VERSION.txt"
 if (Test-Path $VersionFile) {
@@ -46,9 +53,7 @@ if (-not $Version) {
   if ($m.Success) {
     $suffix = $m.Groups[3].Value.Trim()
     $Version = if ($suffix) { "$($m.Groups[1]).$($m.Groups[2]) DEBUG $suffix" } else { "$($m.Groups[1]).$($m.Groups[2]) DEBUG" }
-  } else {
-    $Version = "6.10 DEBUG"
-  }
+  } else { $Version = "6.10 DEBUG" }
 }
 Info "Version: $Version"
 
@@ -65,9 +70,9 @@ Get-ChildItem -LiteralPath $RepoRoot -Force | ForEach-Object {
   } catch { Warn "Could not remove: $($_.FullName)  $_" }
 }
 
-# Copy staged build into repo, keeping relative structure from $PkgDir
+# Copy staged build into repo, preserving structure from $PkgDir
 Info "Copying new build"
-# Make dirs first
+# Create directories
 Get-ChildItem -LiteralPath $PkgDir -Recurse | Where-Object { $_.PSIsContainer } | ForEach-Object {
   $rel  = $_.FullName.Substring($PkgDir.Length).TrimStart('\','/')
   if ($rel -eq "") { return }
