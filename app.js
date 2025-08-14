@@ -27,6 +27,37 @@
   const aboveSprites=document.getElementById('aboveSprites');
   const cakeSprite=document.getElementById('cakeSprite');
   const healthFg=document.getElementById('healthFg');
+  // Debug: force UI/button to receive clicks and add global logging
+  try{
+    const ui = document.getElementById('ui');
+    if(ui){ ui.style.pointerEvents = 'auto'; ui.style.zIndex = '9998'; }
+    if(startBtn){
+      startBtn.style.pointerEvents = 'auto';
+      startBtn.style.zIndex = '9999';
+      startBtn.style.position = 'absolute';
+    }
+    document.addEventListener('click', (e)=>{
+      try{
+        if(debug) debug.textContent += `[click] ${e.target.id || e.target.tagName}\n`;
+      }catch(_e){}
+    }, {capture:true});
+    startBtn && startBtn.addEventListener('pointerdown', (e)=>{
+      try{
+        if(debug) debug.textContent += `startBtn pointerdown\n`;
+      }catch(_e){}
+    });
+    // Also log elementFromPoint at button center
+    setTimeout(()=>{
+      if(startBtn){
+        const rect = startBtn.getBoundingClientRect();
+        const cx = Math.round(rect.left + rect.width/2);
+        const cy = Math.round(rect.top + rect.height/2);
+        const el = document.elementFromPoint(cx, cy);
+        if(debug) debug.textContent += `[probe] elementFromPoint over start: ${el ? (el.id || el.tagName) : 'null'}\n`;
+      }
+    }, 300);
+  }catch(_e){}
+
   // Fallback: robust starter in case original listener is blocked
   window._startGameFallback = function(){
     try{
