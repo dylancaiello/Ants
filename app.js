@@ -27,6 +27,22 @@
   const aboveSprites=document.getElementById('aboveSprites');
   const cakeSprite=document.getElementById('cakeSprite');
   const healthFg=document.getElementById('healthFg');
+  // Fallback: robust starter in case original listener is blocked
+  window._startGameFallback = function(){
+    try{
+      if(!ac) initAudio(); else if(ac.state==='suspended') ac.resume();
+      if(typeof running==='boolean' && typeof gameOver==='boolean'){
+        if(!running && !gameOver){ startBtn && (startBtn.style.display='none'); reset && reset(); return; }
+        if(gameOver && cakeHP>0){ gameOver=false; running=true; startBtn && (startBtn.textContent='Next Wave'); startBtn && (startBtn.style.display='none'); return; }
+        if(gameOver && cakeHP<=0){ startBtn && (startBtn.style.display='none'); reset && reset(); return; }
+      }
+      // minimal reset if symbols missing
+      startBtn && (startBtn.style.display='none');
+    }catch(e){ console && console.error('Fallback start error', e); }
+  };
+  // Always ensure a click binding exists
+  try{ startBtn && startBtn.addEventListener('click', window._startGameFallback); }catch(_e){}
+
   function spawnEffect(layer, src, x, y, lifeMs){
     const el = document.createElement('img');
     el.src = src;
