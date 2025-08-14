@@ -212,3 +212,11 @@
     updateHUD();
   }
 })();
+  // Hard-bind click with explicit log (debug)
+  try{
+    startBtn.onclick = function(){
+      console.log('START CLICK (hard-bind)');
+      if(debug) debug.textContent += 'START CLICK (hard-bind)\n';
+      window._startGameFallback && window._startGameFallback();
+    };
+  }catch(_e){}
