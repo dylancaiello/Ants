@@ -120,7 +120,7 @@
           evt.initMouseEvent('pointerdown', true, true, window, 0, 0,0, x, y, false,false,false,false, 0, null);
           canvas.dispatchEvent(evt);
         }
-        try{ const d=document.getElementById('debug'); if(d) d.textContent += "[boot] forwarded to canvas\n"; }catch(_e){}
+        try{ const d=document.getElementById('debug');  }catch(_e){}
       }
     }, {capture:true});
   })();
@@ -132,7 +132,7 @@
       const params = new URLSearchParams(location.search);
       const cbFromURL = params.get('cb');
       // Force explicit version name
-      const vLabel = '6.10 DEBUG fixP';
+      const vLabel = '6.10 DEBUG fixQ';
       // Try to grab cb from boot.js tag if not provided
       let cb = cbFromURL;
       if(!cb){

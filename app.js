@@ -73,7 +73,7 @@
     const wobbleAmp = (0.08+Math.random()*0.10); // radians
     const driftRate = (Math.random()*0.6 - 0.3); // radians/sec drift
     const phase = Math.random()*Math.PI*2;
-    const el=document.createElement('img'); el.src='assets/ant.png'; el.className='sprite'; el.style.position='absolute'; log('makeAnt at', Math.round(x), Math.round(y)); el.className='sprite ant'; el.alt='ant'; el.style.width='54px'; el.style.height='54px'; spritesLayer.appendChild(el);
+    const el=document.createElement('img'); el.src='assets/ant.png'; log('makeAnt at', Math.round(x), Math.round(y)); el.className='sprite'; el.style.position='absolute'; log('makeAnt at', Math.round(x), Math.round(y)); el.className='sprite ant'; el.alt='ant'; el.style.width='54px'; el.style.height='54px'; spritesLayer.appendChild(el);
     return {x,y,angle:Math.atan2(CY-y,CX-x),speed:base,alive:true,el, wobbleFreq, wobbleAmp, driftRate, phase};
   }
 
