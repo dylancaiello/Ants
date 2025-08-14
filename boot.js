@@ -60,3 +60,33 @@
   const btn=document.getElementById('startBtn');
   btn && btn.addEventListener('click', ()=>{ log('[boot] startBtn CLICK'); initAudio(); }, {once:false});
 })();
+
+  // Forward pointer events to canvas so ant taps always register
+  try{
+    const canvas = document.getElementById('game');
+    const startBtn = document.getElementById('startBtn');
+    if(canvas){
+      document.addEventListener('pointerdown', function(e){
+        // Ignore clicks on Start/Next Wave button
+        if(startBtn && startBtn.contains(e.target)) return;
+        // Re-dispatch to canvas with the same client coordinates
+        try{
+          const ev = new PointerEvent('pointerdown', {
+            bubbles: true,
+            cancelable: true,
+            clientX: e.clientX,
+            clientY: e.clientY,
+            pointerId: e.pointerId || 1,
+            pointerType: e.pointerType || 'mouse',
+            buttons: e.buttons || 1,
+          });
+          canvas.dispatchEvent(ev);
+        }catch(_err){
+          // Fallback for older browsers
+          const evt = document.createEvent('MouseEvents');
+          evt.initMouseEvent('pointerdown', true, true, window, 0, 0,0, e.clientX, e.clientY, false,false,false,false, 0, null);
+          canvas.dispatchEvent(evt);
+        }
+      }, {capture:true});
+    }
+  }catch(_e){}
