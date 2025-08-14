@@ -19,14 +19,22 @@ if not exist "%SCRIPT%" (
   exit /b 1
 )
 
-REM Optional: sanity check the zip looks like a .zip
 echo ZIP: "%ZIP%"
 echo SCRIPT: "%SCRIPT%"
 echo.
 
-REM Run PowerShell with proper flags; keep window open on error
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
-  "try { & '%SCRIPT%' '%ZIP%' } catch { Write-Host 'PS ERROR:' $_ -ForegroundColor Red; Read-Host 'Press Enter to exit'; exit 1 }"
+  "try { & '%SCRIPT%' '%ZIP%' } catch { Write-Host 'PS ERROR:' $_ -ForegroundColor Red; exit 1 }"
+
+REM Open page only if deploy succeeded
+if errorlevel 1 (
+  echo Deploy failed. Press any key to exit.
+  pause
+  exit /b 1
+)
+
+set "CB=%RANDOM%%RANDOM%"
+start "" "https://dylancaiello.github.io/Ants/?v=6.10+DEBUG+fixP&cb=%CB%"
 
 echo.
 echo Done.
