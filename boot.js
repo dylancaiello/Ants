@@ -132,7 +132,7 @@
       const params = new URLSearchParams(location.search);
       const cbFromURL = params.get('cb');
       // Force explicit version name
-      const vLabel = '6.10 DEBUG fixO';
+      const vLabel = '6.10 DEBUG fixP';
       // Try to grab cb from boot.js tag if not provided
       let cb = cbFromURL;
       if(!cb){
@@ -173,3 +173,18 @@
     const ui=document.getElementById('ui');
     if(ui){ ui.style.pointerEvents='auto'; }
   }catch(_e){}
+  // --- Robust Start fallback (fixP) ---
+  (function(){
+    const btn = document.getElementById('startBtn');
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+      try{
+        const d=document.getElementById('debug'); if(d){ d.textContent += "[boot] start fallback\n"; }
+        if(typeof window.ac !== 'undefined' && ac && ac.state==='suspended'){ try{ ac.resume(); }catch(_e){} }
+        btn.style.display='none';
+        try{ window.gameOver=false; window.running=true; }catch(_e){}
+        if(typeof window.reset === 'function'){ window.reset(); }
+      }catch(_e){}
+    }, {capture:false});
+  })();
+    

@@ -73,7 +73,7 @@
     const wobbleAmp = (0.08+Math.random()*0.10); // radians
     const driftRate = (Math.random()*0.6 - 0.3); // radians/sec drift
     const phase = Math.random()*Math.PI*2;
-    const el=document.createElement('img'); el.src='assets/ant.png'; log('makeAnt at', Math.round(x), Math.round(y)); el.className='sprite ant'; el.alt='ant'; el.style.width='54px'; el.style.height='54px'; spritesLayer.appendChild(el);
+    const el=document.createElement('img'); el.src='assets/ant.png'; el.className='sprite'; el.style.position='absolute'; log('makeAnt at', Math.round(x), Math.round(y)); el.className='sprite ant'; el.alt='ant'; el.style.width='54px'; el.style.height='54px'; spritesLayer.appendChild(el);
     return {x,y,angle:Math.atan2(CY-y,CX-x),speed:base,alive:true,el, wobbleFreq, wobbleAmp, driftRate, phase};
   }
 
@@ -152,7 +152,10 @@
     for(let i=0;i<12;i++){ ctx.fillStyle=i%2?'#1a1c1f':'#15171a'; ctx.fillRect(0,i*(H/12),W,H/12); } ctx.globalAlpha=1; }
   function drawArena(){ ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(CX,CY,arenaRadius,0,Math.PI*2); ctx.stroke(); }
 
-  function positionSprites(){ for(const a of ants){ if(!a.el) continue; a.el.style.left = a.x+'px'; a.el.style.top = a.y+'px'; a.el.style.transform = 'translate(-50%,-50%) rotate(' + (a.angle*180/Math.PI + 90) + 'deg)'; } }
+  function positionSprites(){ for(const a of ants){ if(!a.el) continue;
+      a.el.style.left = a.x + 'px';
+      a.el.style.top  = a.y + 'px';
+      a.el.style.transform = 'translate(-50%,-50%) rotate(' + (a.angle*180/Math.PI + 90) + 'deg)'; a.el.style.left = a.x+'px'; a.el.style.top = a.y+'px'; a.el.style.transform = 'translate(-50%,-50%) rotate(' + (a.angle*180/Math.PI + 90) + 'deg)'; } }
 
   function tickAnts(dt){ const BITE_DMG=2;
     for(const a of ants){ if(!a.alive) continue;
