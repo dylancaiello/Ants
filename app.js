@@ -1,12 +1,12 @@
-// Ants v6.5 DEBUG — DOM APNG sprites + hit effects + sound hook
+// Ants v6.6 DEBUG — APNG DOM sprites + hit blip at position + low-latency audio
 (function(){
 
   const debug=document.getElementById('debug');
   const log=(...a)=>{ if(debug){ debug.textContent += a.join(' ') + "\n"; } console.log('[Ants]', ...a); };
   window.onerror=(m,s,l,c,e)=>{ log('ERROR:', m, '@', s, l+':'+c); };
 
-  if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('sw-v65.js')); }
-  log('boot v6.5 DEBUG');
+  if('serviceWorker' in navigator){ addEventListener('load',()=>navigator.serviceWorker.register('sw-v66.js')); }
+  log('boot v6.6 DEBUG');
 
   const DPR=Math.min(3, devicePixelRatio||1);
   const canvas=document.getElementById('game');
@@ -19,9 +19,13 @@
   const spritesLayer=document.getElementById('sprites');
   const cakeSprite=document.getElementById('cakeSprite');
 
-  const pop = new Audio('assets/pop.mp3'); pop.preload='auto';
-  let audioUnlocked=false;
-  function unlockAudio(){ if(audioUnlocked) return; pop.play().then(()=>{pop.pause(); pop.currentTime=0; audioUnlocked=true; log('audio unlocked');}).catch(()=>{}); }
+  // WebAudio preloading for ultra-low latency
+  let ac, popBuf=null;
+  function initAudio(){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(_e){ ac=null; }
+    if(!ac) return;
+    fetch('assets/pop.mp3').then(r=>r.arrayBuffer()).then(ab=>ac.decodeAudioData(ab)).then(buf=>{ popBuf=buf; log('audio decoded'); }).catch(()=>{});
+  }
+  function playPop(){ if(popBuf && ac && ac.state!=='suspended'){ const s=ac.createBufferSource(); s.buffer=popBuf; const g=ac.createGain(); g.gain.value=0.7; s.connect(g); g.connect(ac.destination); s.start(0); } }
 
   let W=0,H=0,CX=0,CY=0, arenaRadius=0;
   function resize(){ W=innerWidth; H=innerHeight; CX=W*0.5; CY=H*0.5;
@@ -36,7 +40,7 @@
   }
   addEventListener('resize', resize, {passive:true}); resize();
 
-  let running=false, gameOver=false, wave=1, cakeHP=3;
+  let running=false, gameOver=false, wave=1, cakeHP=3, score=0;
   const ants=[]; const TAP_RADIUS=32;
   let waveTotal=10, spawned=0, spawnTimer=0.4+Math.random()*0.4;
 
@@ -46,7 +50,7 @@
     return {x,y,angle:Math.atan2(CY-y,CX-x),speed,alive:true,el};
   }
 
-  function reset(){ running=true; gameOver=false; wave=1; cakeHP=3;
+  function reset(){ running=true; gameOver=false; wave=1; cakeHP=3; score=0;
     for(const a of ants){ if(a.el && a.el.parentNode) a.el.parentNode.removeChild(a.el); }
     ants.length=0; waveTotal=10; spawned=0; spawnTimer=0.35+Math.random()*0.4;
     updateHUD(); log('reset -> wave', wave, 'waveTotal', waveTotal);
@@ -62,27 +66,25 @@
 
   function updateHUD(){ waveEl.textContent='Wave '+wave; antsEl.textContent='Ants: '+ants.filter(a=>a.alive).length; hpEl.textContent='Cake: '+cakeHP; }
 
-  function showToast(msg){ toast.textContent=msg; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),600); log('toast:', msg); }
-
   function blip(x,y){ const b=document.createElement('div'); b.className='blip'; b.textContent='+1'; b.style.left=x+'px'; b.style.top=y+'px'; spritesLayer.appendChild(b);
     requestAnimationFrame(()=> b.classList.add('show'));
-    setTimeout(()=> b.remove(), 450);
+    setTimeout(()=> b.remove(), 420);
   }
 
-  function handlePointer(e){ unlockAudio();
+  function handlePointer(e){ // user gesture: resume & init audio
+    if(ac && ac.state==='suspended') ac.resume(); else if(!ac) initAudio();
     const r=canvas.getBoundingClientRect(); const px=(e.clientX-r.left); const py=(e.clientY-r.top);
     log('tap', px|0, py|0, 'running', running, 'gameOver', gameOver);
     if(!running||gameOver) return; let hit=false;
     for(const a of ants){ if(!a.alive) continue; const dx=a.x-px, dy=a.y-py; if(dx*dx+dy*dy<=TAP_RADIUS*TAP_RADIUS){ a.alive=false; hit=true;
-          if(a.el){ a.el.classList.add('squash'); setTimeout(()=> a.el.remove(), 210); }
-          blip(a.x, a.y);
-          try{ pop.currentTime=0; pop.play(); }catch(_e){}
+          if(a.el){ a.el.classList.add('squash'); setTimeout(()=> a.el.remove(), 200); }
+          score++; blip(a.x, a.y); playPop();
     } }
-    if(hit) showToast('Splat!'); updateHUD();
+    if(hit) updateHUD();
   }
   canvas.addEventListener('pointerdown',(e)=>{ e.preventDefault(); handlePointer(e); },{passive:false});
 
-  startBtn.addEventListener('click', ()=>{ unlockAudio(); log('startBtn click', 'running', running, 'gameOver', gameOver);
+  startBtn.addEventListener('click', ()=>{ if(ac && ac.state==='suspended') ac.resume(); else if(!ac) initAudio(); log('startBtn click', 'running', running, 'gameOver', gameOver);
     if(!running && !gameOver){ startBtn.style.display='none'; reset(); }
     else if(gameOver && cakeHP>0){ gameOver=false; running=true; wave++; waveTotal=Math.floor(10+(wave-1)*1.5); spawned=0; spawnTimer=0.35+Math.random()*0.4; updateHUD(); startBtn.style.display='none'; }
     else if(gameOver && cakeHP<=0){ startBtn.style.display='none'; reset(); }
@@ -102,12 +104,16 @@
 
   function tickAnts(dt){ for(const a of ants){ if(!a.alive) continue; const dx=CX-a.x, dy=CY-a.y; const len=Math.hypot(dx,dy)||1;
       a.x += (dx/len)*a.speed*dt; a.y += (dy/len)*a.speed*dt; a.angle=Math.atan2(dy,dx);
-      const d=Math.hypot(a.x-CX, a.y-CY); if(d<=36){ a.alive=false; if(a.el) a.el.remove(); cakeHP--; showToast('They got a bite!');
+      const d=Math.hypot(a.x-CX, a.y-CY); if(d<=36){ a.alive=false; if(a.el) a.el.remove(); cakeHP--; 
+        // toast only for bites:
+        toast.textContent='They got a bite!'; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),600);
         if(cakeHP<=0){ gameOver=true; running=false; startBtn.textContent='Restart'; startBtn.style.display='block'; }
       }
     }
     const alive=ants.filter(a=>a.alive).length;
-    if(alive===0 && spawned>=waveTotal && cakeHP>0){ gameOver=true; running=false; startBtn.textContent='Next Wave'; startBtn.style.display='block'; showToast('Wave cleared'); updateHUD(); }
+    if(alive===0 && spawned>=waveTotal && cakeHP>0){ gameOver=true; running=false; startBtn.textContent='Next Wave'; startBtn.style.display='block'; 
+      toast.textContent='Wave cleared'; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),600);
+    }
     updateHUD();
   }
 })();

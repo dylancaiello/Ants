@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Ants — v6.5 DEBUG</title>
+  <title>Ants — v6.6 DEBUG</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#121212">
   <style>
@@ -22,9 +22,9 @@
     .sprite{position:absolute;left:0;top:0;transform:translate(-50%,-50%) rotate(0deg);will-change:transform;image-rendering:auto}
     #cakeSprite{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
     @keyframes squash{0%{transform:translate(-50%,-50%) scale(1.0)}50%{transform:translate(-50%,-50%) scale(1.2,0.85)}100%{transform:translate(-50%,-50%) scale(0.0)}}
-    .squash{animation:squash 200ms ease-out forwards}
-    .blip{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font-weight:800;color:#ffe082;text-shadow:0 2px 6px #0008;pointer-events:none;opacity:0;transition:opacity .2s, transform .4s}
-    .blip.show{opacity:1;transform:translate(-50%,-110%)}
+    .squash{animation:squash 180ms ease-out forwards}
+    .blip{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font-weight:800;color:#ffe082;text-shadow:0 2px 6px #0008;pointer-events:none;opacity:0;transition:opacity .18s, transform .36s}
+    .blip.show{opacity:1;transform:translate(-50%,-120%)}
   </style>
 </head>
 <body>
@@ -43,7 +43,7 @@
       <div id="hint">Protect the cake. Tap ants before they reach the center.</div>
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </div>
-    <div id="ver">v6.5 DEBUG</div>
+    <div id="ver">v6.6 DEBUG</div>
     <div id='debug'>[init] JS loaded\n</div>
   </div>
   <script src="app.js" defer></script>
