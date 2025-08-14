@@ -79,9 +79,10 @@
 
   function reset(){ log('reset() called'); running=true; gameOver=false; wave=1; cakeHP=50; score=0; combo=1; comboLabel.textContent='Combo x1'; comboFill.style.width='0%';
     for(const a of ants){ if(a.el && a.el.parentNode) a.el.parentNode.removeChild(a.el); }
-    ants.length=0; waveTotal=10; spawned=0; spawnTimer=0.2+Math.random()*0.2; log('reset: waveTotal', waveTotal, 'spawnTimer', spawnTimer);
+    ants.length=0; waveTotal=10; spawned=0; spawnTimer=0.15+Math.random()*0.15; log('reset: waveTotal', waveTotal, 'spawnTimer', spawnTimer);
     spawnBurst(); log('reset: spawned initial ants');
     updateHUD();
+    try{ spawnBurst(); spawnBurst(); log('reset: forced initial spawn x2'); }catch(_e){}
   }
 
   function spawnBurst(){ const remaining=waveTotal-spawned; if(remaining<=0) return;
@@ -182,3 +183,5 @@
     updateHUD();
   }
 })();
+window.reset = reset;
+try{ window.spawnBurst = spawnBurst; }catch(_e){}

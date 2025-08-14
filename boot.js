@@ -132,7 +132,7 @@
       const params = new URLSearchParams(location.search);
       const cbFromURL = params.get('cb');
       // Force explicit version name
-      const vLabel = '6.10 DEBUG fixQ';
+      const vLabel = '6.10 DEBUG fixR';
       // Try to grab cb from boot.js tag if not provided
       let cb = cbFromURL;
       if(!cb){

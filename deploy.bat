@@ -33,8 +33,29 @@ if errorlevel 1 (
   exit /b 1
 )
 
-set "CB=%RANDOM%%RANDOM%"
-start "" "https://dylancaiello.github.io/Ants/?v=6.10+DEBUG+fixP&cb=%CB%"
+REM --- Build the URL with version + cache buster, then open it ---
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$z = '%ZIP%';" ^
+  "$cb = [int]((Get-Date).ToUniversalTime().Subtract([datetime]'1970-01-01')).TotalSeconds);" ^
+  "Add-Type -AssemblyName System.IO.Compression.FileSystem;" ^
+  "$ver = $null;" ^
+  "try {" ^
+  "  $fs = [System.IO.File]::OpenRead($z);" ^
+  "  $zip = New-Object System.IO.Compression.ZipArchive($fs);" ^
+  "  $entry = $zip.GetEntry('VERSION.txt');" ^
+  "  if($entry){ $sr = New-Object IO.StreamReader($entry.Open()); $line = $sr.ReadLine(); $sr.Close(); $ver = $line }" ^
+  "} catch {} finally { if($zip){$zip.Dispose()} if($fs){$fs.Dispose()} }" ^
+  "if(-not $ver) {" ^
+  "  $bn = [System.IO.Path]::GetFileNameWithoutExtension($z);" ^
+  "  $m = [regex]::Match($bn, 'v?(\d+\.\d+)[ _-]*DEBUG[ _-]*(.*)$');" ^
+  "  if($m.Success) {" ^
+  "    $suffix = $m.Groups[2].Value.Trim();" ^
+  "    if($suffix){ $ver = ($m.Groups[1].Value + ' DEBUG ' + $suffix) } else { $ver = ($m.Groups[1].Value + ' DEBUG') }" ^
+  "  } else { $ver = 'v6.10 DEBUG' }" ^
+  "}" ^
+  "$vparam = ($ver -replace '\s+','+');" ^
+  "$url = 'https://dylancaiello.github.io/Ants/?v=' + $vparam + '&cb=' + $cb;" ^
+  "Start-Process $url"
 
 echo.
 echo Done.
