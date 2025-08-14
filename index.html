@@ -69,22 +69,7 @@
     <div id="debug">[init] JS loaded
 </div>
   </div>
-  <script>
-(function(){
-  try{
-    var params = new URLSearchParams(location.search);
-    var cb = params.get('cb') || String(Date.now());
-    var add = function(src){
-      var s = document.createElement('script');
-      s.src = src + (src.indexOf('?')> -1 ? '&' : '?') + 'cb=' + encodeURIComponent(cb);
-      s.defer = true;
-      document.head.appendChild(s);
-      return s;
-    };
-    add('boot.js');
-    add('app.js');
-  }catch(e){ console && console.error('loader error', e); }
-})();
-</script>
+  <script src="boot.js?cb=1755213192" defer></script>
+  <script src="app.js?cb=1755213192" defer></script>
 </body>
 </html>
