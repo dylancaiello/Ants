@@ -1,5 +1,6 @@
 
 (function(){
+  if(window.__ANTS_BOOT_INIT__) return; window.__ANTS_BOOT_INIT__=true;
 
 // ===== hook canvas pointerdown registered by app.js =====
 (function(){
@@ -7,25 +8,24 @@
     const canvas = document.getElementById('game');
     if(!canvas) return;
     const _origAdd = canvas.addEventListener.bind(canvas);
-    canvas.addEventListener = function(type, listener, options){
-      if(type === 'pointerdown'){
-        try{
-          window.__antsPointerHandler = listener;
-          const d=document.getElementById('debug'); if(d){ d.textContent += "[boot] hooked canvas pointerdown\n"; }
-          console.log('[boot] hooked canvas pointerdown');
-        }catch(_e){}
-      }
-      return _origAdd(type, listener, options);
-    };
-    // Also add our own logger to confirm events reach the canvas
-    _origAdd('pointerdown', function(e){
-      const d=document.getElementById('debug'); if(d){ d.textContent += "[boot] canvas pointerdown\n"; }
-      try{
-        if(typeof window.__antsPointerHandler === 'function'){
-          window.__antsPointerHandler.call(canvas, e);
+    if(!window.__ANTS_HOOKED__){
+      canvas.addEventListener = function(type, listener, options){
+        if(type === 'pointerdown'){
+          try{
+            window.__antsPointerHandler = listener;
+            const d=document.getElementById('debug'); if(d){ d.textContent += "[boot] hooked canvas pointerdown
+"; }
+          }catch(_e){}
         }
-      }catch(_e){}
-    }, {passive:false});
+        return _origAdd(type, listener, options);
+      };
+      // Add a single logger to confirm events reach the canvas
+      _origAdd('pointerdown', function(e){
+        const d=document.getElementById('debug'); if(d){ d.textContent += "[boot] canvas pointerdown
+"; }
+      }, {passive:false});
+      window.__ANTS_HOOKED__=true;
+    }
   }catch(_e){}
 })();
 
@@ -50,7 +50,31 @@
          popBuf=await new Promise((res,rej)=> ac.decodeAudioData(ab.slice(0), res, rej));
     }catch(_e){}
   }
-  function playPop(){
+  
+// Audio pitch-variation shim: random ±200 cents on each start()
+try{
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if(AC && !AC.__antsShimmed){
+    const proto = AC.prototype;
+    const _origCreate = proto.createBufferSource;
+    proto.createBufferSource = function(){
+      const node = _origCreate.call(this);
+      try{
+        const _start = node.start.bind(node);
+        node.start = function(){
+          try{
+            if(node.playbackRate){ const cents=(Math.random()*400)-200; node.playbackRate.value = Math.pow(2, cents/1200); }
+          }catch(_e){}
+          return _start.apply(null, arguments);
+        };
+      }catch(_e){}
+      return node;
+    };
+    AC.__antsShimmed = true;
+  }
+}catch(_e){}
+
+function playPop(){
     if(!ac||!popBuf) return; try{
       if(ac.state==='suspended') ac.resume();
       const s=ac.createBufferSource(); s.buffer=popBuf;
@@ -79,7 +103,12 @@
       if(m.type==='attributes' && m.attributeName==='class' && el && el.tagName==='IMG' && el.classList.contains('squash')){
         const r=el.getBoundingClientRect(), sR=sprites.getBoundingClientRect();
         const x=r.left+r.width/2 - sR.left, y=r.top+r.height/2 - sR.top;
-        spawnStain(x,y); spawnSplat(x,y); initAudio().then(playPop);
+        if(!window.__antsSeen){ window.__antsSeen = new WeakSet(); }
+        if(!window.__antsSeen.has(el)){
+          window.__antsSeen.add(el);
+          spawnStain(x,y); spawnSplat(x,y);
+          // Let app.js play the pop; pitch variation added via shim
+        }
       }
     }
   });
