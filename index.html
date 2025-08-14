@@ -9,8 +9,8 @@
     html,body { margin:0; height:100%; background:#121212; color:#f6f6f6; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
     #wrapper{ position:relative; height:100vh; width:100vw; overflow:hidden; }
     #game{ display:block; width:100vw; height:100vh; touch-action:none; outline:none; background:#101114; }
-    #sprites{ position:absolute; inset:0; pointer-events:none; z-index:2; }
-    #ui{ position:absolute; inset:0; z-index:2; pointer-events:none; }
+    #sprites{ position:absolute; inset:0; pointer-events:none; z-index:1; }
+    #ui{ position:absolute; inset:0; z-index:3; pointer-events:none; }
     #topbar{ position:absolute; top:8px; left:8px; right:8px; display:flex; gap:12px; justify-content:space-between; align-items:center; font-weight:700; text-shadow:0 2px 4px rgba(0,0,0,.35); }
     .hud{ background:#0006; border:1px solid #333; border-radius:10px; padding:6px 10px; pointer-events:none; }
     .btn{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:14px 18px; border:0; border-radius:12px; background:#4caf50; color:#fff; font-weight:700; font-size:18px; pointer-events:auto; cursor:pointer }
@@ -37,11 +37,11 @@
 <body>
   <div id="wrapper">
     <canvas id="game" aria-label="Ants game canvas"></canvas>
-    <div id="belowSprites" style="position:absolute; inset:0; pointer-events:none; z-index:1;"></div>
+    <div id="belowSprites" style="position:absolute; inset:0; pointer-events:none; z-index:0;"></div>
     <div id="sprites">
       <img id="cakeSprite" class="sprite" src="assets/cake.png" alt="cake">
     </div>
-    <div id="aboveSprites" style="position:absolute; inset:0; pointer-events:none; z-index:3;"></div>
+    <div id="aboveSprites" style="position:absolute; inset:0; pointer-events:none; z-index:2;"></div>
     <div id="ui">
       <div id="topbar">
         <div class="hud">
