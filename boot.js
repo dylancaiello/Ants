@@ -1,5 +1,34 @@
 
 (function(){
+
+// ===== hook canvas pointerdown registered by app.js =====
+(function(){
+  try{
+    const canvas = document.getElementById('game');
+    if(!canvas) return;
+    const _origAdd = canvas.addEventListener.bind(canvas);
+    canvas.addEventListener = function(type, listener, options){
+      if(type === 'pointerdown'){
+        try{
+          window.__antsPointerHandler = listener;
+          const d=document.getElementById('debug'); if(d){ d.textContent += "[boot] hooked canvas pointerdown\n"; }
+          console.log('[boot] hooked canvas pointerdown');
+        }catch(_e){}
+      }
+      return _origAdd(type, listener, options);
+    };
+    // Also add our own logger to confirm events reach the canvas
+    _origAdd('pointerdown', function(e){
+      const d=document.getElementById('debug'); if(d){ d.textContent += "[boot] canvas pointerdown\n"; }
+      try{
+        if(typeof window.__antsPointerHandler === 'function'){
+          window.__antsPointerHandler.call(canvas, e);
+        }
+      }catch(_e){}
+    }, {passive:false});
+  }catch(_e){}
+})();
+
   // Force-unregister any service workers to avoid stale caches
   try{
     if('serviceWorker' in navigator){
@@ -90,3 +119,26 @@
       }, {capture:true});
     }
   }catch(_e){}
+
+  // Ensure canvas gets clicks: make #ui transparent and move Start button out of it
+  try{
+    const wrap = document.getElementById('wrapper');
+    const ui = document.getElementById('ui');
+    const btn = document.getElementById('startBtn');
+    if(ui){ ui.style.pointerEvents = 'none'; }
+    if(btn && wrap && btn.parentElement === ui){
+      wrap.appendChild(btn); // move out of #ui so parent's pointer-events:none doesn't affect it
+      btn.style.pointerEvents = 'auto';
+      btn.style.zIndex = '5';
+      btn.style.position = 'absolute';
+      btn.style.left = '50%';
+      btn.style.top = '50%';
+      btn.style.transform = 'translate(-50%, -50%)';
+    }
+  }catch(_e){}
+
+try{
+  const bs = document.getElementById('belowSprites'); if(bs) bs.style.pointerEvents='none';
+  const as = document.getElementById('aboveSprites'); if(as) as.style.pointerEvents='none';
+  const sp = document.getElementById('sprites'); if(sp) sp.style.pointerEvents='none';
+}catch(_e){}
