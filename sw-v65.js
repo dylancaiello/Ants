@@ -1,6 +1,6 @@
-// SW v6.4 DEBUG
-const CACHE='ants-v6.4-DEBUG';
-const ASSETS=['./','./index.html','./manifest.json','./app.js','./assets/ant.png','./assets/cake.png','./icons/icon-192.png','./icons/icon-512.png'];
+// SW v6.5 v6.5 DEBUG
+const CACHE='ants-v6.5-v6.5 DEBUG';
+const ASSETS=['./','./index.html','./manifest.json','./app.js','./assets/ant.png','./assets/cake.png','./assets/pop.mp3','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));});
 self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim());});
 self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});
