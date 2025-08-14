@@ -18,19 +18,23 @@
   const waveEl=document.getElementById('wave');
   const antsEl=document.getElementById('ants');
   const hpEl=document.getElementById('hp');
-  const scoreEl=document.getElementById('score');
+  const levelEl=document.getElementById('level');
+  const xpFg=document.getElementById('xpFg');
   const comboLabel=document.getElementById('comboLabel');
   const comboFill=document.getElementById('comboFill');
   const toast=document.getElementById('toast');
   const spritesLayer=document.getElementById('sprites');
   const cakeSprite=document.getElementById('cakeSprite');
   const healthFg=document.getElementById('healthFg');
+  const xpFg=document.getElementById('xpFg');
 
-  let ac, popBuf=null;
+  let ac, popBuf=null, crunchBuf=null;
   function initAudio(){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(_e){ ac=null; }
     if(!ac) return;
     fetch('assets/pop.mp3').then(r=>r.arrayBuffer()).then(ab=>ac.decodeAudioData(ab)).then(buf=>{ popBuf=buf; log('audio decoded'); }).catch(()=>{});
   }
+    fetch('assets/crunch.mp3').then(r=>r.arrayBuffer()).then(ab=>ac.decodeAudioData(ab.slice(0))).then(buf=>{ crunchBuf=buf; log('crunch decoded'); }).catch(()=>{});
+  function playCrunch(){ if(crunchBuf && ac && ac.state!=='suspended'){ const s=ac.createBufferSource(); s.buffer=crunchBuf; const g=ac.createGain(); g.gain.value=0.7; s.connect(g); g.connect(ac.destination); s.start(0); } }
   function playPop(){ if(popBuf && ac && ac.state!=='suspended'){ const s=ac.createBufferSource(); s.buffer=popBuf; const g=ac.createGain(); g.gain.value=0.7; s.connect(g); g.connect(ac.destination); s.start(0); } }
 
   let W=0,H=0,CX=0,CY=0, arenaRadius=0, cakeRadius=60;
@@ -46,11 +50,11 @@
   }
   addEventListener('resize', resize, {passive:true}); resize();
 
-  let running=false, gameOver=false, wave=1, cakeHP=50, score=0;
+  let running=false, gameOver=false, wave=1, cakeHP=50, score=0, level=1, xp=0, xpNext=40;
   const ants=[]; const TAP_RADIUS=32;
   let waveTotal=10, spawned=0, spawnTimer=0.4+Math.random()*0.4;
 
-  let combo=1, comboTimer=0, COMBO_WINDOW=1.2;
+  let combo=1, comboTimer=0, COMBO_WINDOW=0.6;
   function bumpCombo(){ const now=performance.now()/1000;
     if(now - comboTimer <= COMBO_WINDOW) combo++; else combo=1;
     comboTimer = now;
@@ -69,7 +73,7 @@
     const wobbleAmp = (0.08+Math.random()*0.10); // radians
     const driftRate = (Math.random()*0.6 - 0.3); // radians/sec drift
     const phase = Math.random()*Math.PI*2;
-    const el=document.createElement('img'); el.src='assets/ant.png'; el.className='sprite ant'; el.alt='ant'; el.style.width='64px'; el.style.height='64px'; spritesLayer.appendChild(el);
+    const el=document.createElement('img'); el.src='assets/ant.png'; el.className='sprite ant'; el.alt='ant'; el.style.width='54px'; el.style.height='54px'; spritesLayer.appendChild(el);
     return {x,y,angle:Math.atan2(CY-y,CX-x),speed:base,alive:true,el, wobbleFreq, wobbleAmp, driftRate, phase};
   }
 
@@ -87,7 +91,21 @@
   }
   function spawnWaveIfNeeded(dt){ if(!running||gameOver) return; if(spawned<waveTotal){ spawnTimer-=dt; if(spawnTimer<=0) spawnBurst(); } }
 
-  function updateHUD(){ waveEl.textContent='Wave '+wave; antsEl.textContent='Ants: '+ants.filter(a=>a.alive).length; hpEl.textContent='Cake: '+cakeHP; scoreEl.textContent='Score: '+score; healthFg.style.width=(Math.max(0,cakeHP)/50*100)+'%'; }
+  function updateHUD(){
+    waveEl.textContent = wave;
+    antsEl.textContent = ants.filter(a=>a.alive).length;
+    hpEl.textContent = Math.max(0, cakeHP);
+    // XP bar
+    if(typeof xpNext==='number' && xpFg){ 
+      const pct = Math.max(0, Math.min(1, xp / Math.max(1, xpNext)));
+      xpFg.style.width = (pct*100) + '%';
+    }
+    // Level + Skill Points in score spot
+    scoreEl.textContent = 'LV ' + level + '  |  SP: ' + skillPoints;
+    // Health bar
+    healthFg.style.width = (Math.max(0,cakeHP)/50*100)+'%';
+  }catch(_e){}
+  }
 
   function blip(x,y,txt){ const b=document.createElement('div'); b.className='blip'; b.textContent=txt; b.style.left=x+'px'; b.style.top=y+'px'; spritesLayer.appendChild(b);
     requestAnimationFrame(()=> b.classList.add('show'));
@@ -98,7 +116,7 @@
     const r=canvas.getBoundingClientRect(); const px=(e.clientX-r.left); const py=(e.clientY-r.top);
     if(!running||gameOver) return; let hit=false;
     for(const a of ants){ if(!a.alive) continue; const dx=a.x-px, dy=a.y-py; if(dx*dx+dy*dy<=TAP_RADIUS*TAP_RADIUS){ a.alive=false; hit=true;
-          bumpCombo(); const gain = combo; score += gain; playPop(); blip(a.x, a.y, '+'+gain);
+          bumpCombo(); const gain = combo; const baseXP = 5; xp += baseXP * gain; while(xp >= xpNext){ xp -= xpNext; level++; xpNext = Math.round(40 + level * 20); toast.textContent='Level Up!'; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'), 600);} playPop(); blip(a.x, a.y, '+'+gain);
           if(a.el){ a.el.classList.add('squash'); setTimeout(()=> a.el.remove(), 200); }
     } }
     if(hit) updateHUD();
@@ -148,7 +166,7 @@
       const d = Math.hypot(a.x-CX, a.y-CY);
       if(d<=cakeRadius){ a.alive=false; if(a.el) a.el.remove();
         cakeHP = Math.max(0, cakeHP - BITE_DMG);
-        cakeSprite.classList.add('hurt'); setTimeout(()=>cakeSprite.classList.remove('hurt'), 120);
+        playCrunch(); cakeSprite.classList.add('hurt'); setTimeout(()=>cakeSprite.classList.remove('hurt'), 120);
         toast.textContent='They got a bite!'; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),600);
         if(cakeHP<=0){ gameOver=true; running=false; startBtn.textContent='Restart'; startBtn.style.display='block'; }
       }
