@@ -1,96 +1,109 @@
-param (
-    [string]$ZipPath = $null
+# deploy.ps1 — robust ZIP deploy (no browser open; BAT handles URL)
+param(
+  [Parameter(Mandatory = $true)]
+  [string]$ZipPath
 )
 
-function Fail($msg) {
-    Write-Host ""
-    Write-Host ("ERROR: " + $msg) -ForegroundColor Red
-    Pause
-    exit 1
+$ErrorActionPreference = 'Stop'
+
+function Fail($msg){ Write-Host "`nERROR: $msg" -ForegroundColor Red; exit 1 }
+function Info($msg){ Write-Host "[deploy] $msg" -ForegroundColor Cyan }
+function Warn($msg){ Write-Host "[deploy] $msg" -ForegroundColor Yellow }
+
+# Resolve & validate inputs
+$ZipPath = (Resolve-Path $ZipPath).Path
+if (-not (Test-Path -LiteralPath $ZipPath -PathType Leaf)) { Fail "Zip not found: $ZipPath" }
+if ([IO.Path]::GetExtension($ZipPath).ToLower() -ne ".zip") { Fail "Not a .zip file: $ZipPath" }
+
+# Repo root = folder containing this script
+$RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not (Test-Path (Join-Path $RepoRoot ".git"))) { Fail "No .git folder at $RepoRoot" }
+
+# Temp staging
+$Staging = Join-Path ([IO.Path]::GetTempPath()) ("ants_deploy_" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $Staging | Out-Null
+
+# Extract ZIP to staging
+Info "Extracting $ZipPath"
+Expand-Archive -Path $ZipPath -DestinationPath $Staging -Force
+
+# Find the folder that CONTAINS index.html (works for root or nested)
+$IndexFile = Get-ChildItem -LiteralPath $Staging -Recurse -File -Filter 'index.html' | Select-Object -First 1
+if (-not $IndexFile) { Fail "Package missing index.html" }
+$PkgDir = Split-Path -Parent $IndexFile.FullName
+Info "Package folder: $PkgDir"
+
+# Read VERSION.txt (optional)
+$Version = $null
+$VersionFile = Join-Path $PkgDir "VERSION.txt"
+if (Test-Path $VersionFile) {
+  $Version = (Get-Content $VersionFile -TotalCount 1).Trim()
+}
+if (-not $Version) {
+  # Fallback like Ants_v6_10_DEBUG_fixU.zip -> 6.10 DEBUG fixU
+  $bn = [IO.Path]::GetFileNameWithoutExtension($ZipPath)
+  $m  = [regex]::Match($bn, 'v?(\d+)[._](\d+).*?DEBUG[_\-\s]*(.*)$', 'IgnoreCase')
+  if ($m.Success) {
+    $suffix = $m.Groups[3].Value.Trim()
+    $Version = if ($suffix) { "$($m.Groups[1]).$($m.Groups[2]) DEBUG $suffix" } else { "$($m.Groups[1]).$($m.Groups[2]) DEBUG" }
+  } else {
+    $Version = "6.10 DEBUG"
+  }
+}
+Info "Version: $Version"
+
+# Preserve these repo items
+$Preserve = @(".git", ".gitignore", ".github", "deploy.ps1", "deploy.bat", "README.md", "LICENSE")
+
+# Clean repo (except preserved)
+Info "Cleaning repo"
+Get-ChildItem -LiteralPath $RepoRoot -Force | ForEach-Object {
+  if ($Preserve -contains $_.Name) { return }
+  try {
+    if ($_.PSIsContainer) { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction Stop }
+    else { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction Stop }
+  } catch { Warn "Could not remove: $($_.FullName)  $_" }
 }
 
-# Accept drag & drop arg or CLI arg
-if (-not $ZipPath) {
-    if ($args.Count -gt 0) { $ZipPath = $args[0] } else { Fail "Drag a build zip onto deploy.ps1 OR run .\deploy.ps1 path\to\zip" }
+# Copy staged build into repo, keeping relative structure from $PkgDir
+Info "Copying new build"
+# Make dirs first
+Get-ChildItem -LiteralPath $PkgDir -Recurse | Where-Object { $_.PSIsContainer } | ForEach-Object {
+  $rel  = $_.FullName.Substring($PkgDir.Length).TrimStart('\','/')
+  if ($rel -eq "") { return }
+  $dest = Join-Path $RepoRoot $rel
+  if (-not (Test-Path $dest)) { New-Item -ItemType Directory -Path $dest | Out-Null }
+}
+# Copy files
+Get-ChildItem -LiteralPath $PkgDir -Recurse -File | ForEach-Object {
+  $rel  = $_.FullName.Substring($PkgDir.Length).TrimStart('\','/')
+  $dest = Join-Path $RepoRoot $rel
+  Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
 }
 
-# Normalize & validate
-$ZipPath = [System.IO.Path]::GetFullPath($ZipPath)
-if (-not (Test-Path -LiteralPath $ZipPath -PathType Leaf)) { Fail ("Zip not found: " + $ZipPath) }
-if ([System.IO.Path]::GetExtension($ZipPath).ToLower() -ne ".zip") { Fail ("Not a .zip file: " + $ZipPath) }
-
-# Work from script folder (repo root)
-$RepoRoot = $PSScriptRoot
-if (-not (Test-Path -LiteralPath $RepoRoot)) { Fail ("Repo root not found: " + $RepoRoot) }
-Set-Location -LiteralPath $RepoRoot
-
-# Extract to temp
-$TmpRoot = Join-Path $env:TEMP ([System.Guid]::NewGuid().ToString())
-New-Item -ItemType Directory -Path $TmpRoot | Out-Null
-try { Expand-Archive -Path $ZipPath -DestinationPath $TmpRoot -Force } catch { Fail ("Failed to extract zip: " + $_) }
-
-# Locate folder that contains index.html
-$PkgDir = $null
-if (Test-Path -LiteralPath (Join-Path $TmpRoot 'index.html')) {
-    $PkgDir = Get-Item -LiteralPath $TmpRoot
-} else {
-    $PkgDir = Get-ChildItem -LiteralPath $TmpRoot -Directory | Where-Object {
-        Test-Path -LiteralPath (Join-Path $_.FullName 'index.html')
-    } | Select-Object -First 1
-    if (-not $PkgDir) {
-        $PkgDir = Get-ChildItem -LiteralPath $TmpRoot -Recurse -Directory | Where-Object {
-            Test-Path -LiteralPath (Join-Path $_.FullName 'index.html')
-        } | Select-Object -First 1
-    }
-    if (-not $PkgDir) { Fail "Could not find any extracted folder containing index.html" }
+# Git commit/push
+Push-Location $RepoRoot
+try {
+  Info "git add"
+  git add -A | Out-Null
+  $status = git status --porcelain
+  if (-not $status) {
+    Warn "No changes to commit (same contents as last deploy)."
+  } else {
+    $cb  = [int]((Get-Date).ToUniversalTime().Subtract([datetime]'1970-01-01')).TotalSeconds
+    $msg = "deploy: $Version (cb $cb)"
+    Info "git commit -m `"$msg`""
+    git commit -m "$msg" | Out-Null
+    Info "git push"
+    git push | Out-Null
+  }
+}
+finally {
+  Pop-Location | Out-Null
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $PkgDir.FullName 'index.html'))) {
-    Fail ("index.html not found in package: " + $PkgDir.FullName)
-}
-if ($PkgDir.FullName -match '^[A-Za-z]:\\$') {
-    Fail ("Safety stop: resolved package is drive root (" + $PkgDir.FullName + ")")
-}
+# Cleanup
+try { Remove-Item -LiteralPath $Staging -Recurse -Force } catch {}
 
-# Replace files in repo (keep meta)
-$Keep = @('.git', '.gitignore', 'README.md', 'deploy.ps1', 'deploy.bat')
-Get-ChildItem -LiteralPath $RepoRoot -Force | Where-Object { $Keep -notcontains $_.Name } |
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-
-# Copy new build (use -Path so wildcard expands)
-Copy-Item -Path (Join-Path $PkgDir.FullName '*') -Destination $RepoRoot -Recurse -Force -ErrorAction Stop
-
-# Verify index.html landed
-$IndexPath = Join-Path $RepoRoot 'index.html'
-if (-not (Test-Path -LiteralPath $IndexPath)) { Fail ("Copy failed - index.html not found at " + $IndexPath) }
-
-# Build commit message
-$Ver = "update"
-$VerMatch = Select-String -Path $IndexPath -Pattern 'v[0-9]+\.[0-9]+' -AllMatches
-if ($VerMatch) { $Ver = ($VerMatch.Matches.Value | Select-Object -First 1) }
-
-$Label = ""
-if ($ZipPath -match '(?i)debug') { $Label = "debug" }
-elseif ($ZipPath -match '(?i)prod|clean') { $Label = "prod" }
-
-$CommitMsg = "deploy: " + $Ver
-if ($Label -ne "") { $CommitMsg = $CommitMsg + " " + $Label }
-
-# Commit & push
-git add -A
-git commit -m $CommitMsg
-git push
-
-# Build cache-busted URL (encode spaces only; avoid & by using %26)
-$VerLabel = $Ver
-if ($Label -ne "") { $VerLabel = $VerLabel + " " + $Label }
-$VerParam = $VerLabel -replace ' ', '%20'
-$CacheBuster = [int](Get-Date -UFormat %s)
-$Url = 'https://dylancaiello.github.io/Ants/?v=' + $VerParam + '%26cb=' + $CacheBuster
-
-Write-Host ""
-Write-Host ("Deployed " + $CommitMsg)
-Write-Host ("Opening " + $Url)
-Start-Process $Url
-
-Pause
+Write-Host "Deploy complete." -ForegroundColor Green
+exit 0
