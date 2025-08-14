@@ -73,19 +73,20 @@
     const wobbleAmp = (0.08+Math.random()*0.10); // radians
     const driftRate = (Math.random()*0.6 - 0.3); // radians/sec drift
     const phase = Math.random()*Math.PI*2;
-    const el=document.createElement('img'); el.src='assets/ant.png'; el.className='sprite ant'; el.alt='ant'; el.style.width='54px'; el.style.height='54px'; spritesLayer.appendChild(el);
+    const el=document.createElement('img'); el.src='assets/ant.png'; log('makeAnt at', Math.round(x), Math.round(y)); el.className='sprite ant'; el.alt='ant'; el.style.width='54px'; el.style.height='54px'; spritesLayer.appendChild(el);
     return {x,y,angle:Math.atan2(CY-y,CX-x),speed:base,alive:true,el, wobbleFreq, wobbleAmp, driftRate, phase};
   }
 
-  function reset(){ running=true; gameOver=false; wave=1; cakeHP=50; score=0; combo=1; comboLabel.textContent='Combo x1'; comboFill.style.width='0%';
+  function reset(){ log('reset() called'); running=true; gameOver=false; wave=1; cakeHP=50; score=0; combo=1; comboLabel.textContent='Combo x1'; comboFill.style.width='0%';
     for(const a of ants){ if(a.el && a.el.parentNode) a.el.parentNode.removeChild(a.el); }
-    ants.length=0; waveTotal=10; spawned=0; spawnTimer=0.35+Math.random()*0.4;
+    ants.length=0; waveTotal=10; spawned=0; spawnTimer=0.2+Math.random()*0.2; log('reset: waveTotal', waveTotal, 'spawnTimer', spawnTimer);
+    spawnBurst(); log('reset: spawned initial ants');
     updateHUD();
   }
 
   function spawnBurst(){ const remaining=waveTotal-spawned; if(remaining<=0) return;
     const pool=[1,1,1,1,2,2,3]; let count=pool[(Math.random()*pool.length)|0]; count=Math.min(count, remaining);
-    for(let i=0;i<count;i++) ants.push(makeAnt());
+    for(let i=0;i<count;i++){ const a = makeAnt(); ants.push(a); } log('spawnBurst: +'+count, 'total spawned=', spawned+count);
     spawned+=count;
     spawnTimer=0.35+Math.random()*0.75;
   }

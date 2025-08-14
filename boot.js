@@ -130,8 +130,11 @@
     try{
       const verEl = document.getElementById('ver'); if(!verEl) return;
       const params = new URLSearchParams(location.search);
-      const v = params.get('v') || '6.10 DEBUG fixN';
-      let cb = params.get('cb');
+      const cbFromURL = params.get('cb');
+      // Force explicit version name
+      const vLabel = '6.10 DEBUG fixO';
+      // Try to grab cb from boot.js tag if not provided
+      let cb = cbFromURL;
       if(!cb){
         const scr = document.querySelector('script[src*="boot.js"]');
         if(scr){ try{ cb = new URL(scr.src, location.href).searchParams.get('cb'); }catch(_e){} }
@@ -140,7 +143,7 @@
       const hh = String(now.getHours()).padStart(2,'0');
       const mm = String(now.getMinutes()).padStart(2,'0');
       const ss = String(now.getSeconds()).padStart(2,'0');
-      verEl.textContent = v + " | cb:" + (cb||'n/a') + " | " + hh + ":" + mm + ":" + ss;
+      verEl.textContent = vLabel + " | cb:" + (cb||'n/a') + " | " + hh + ":" + ss;
     }catch(_e){}
   })();
 
