@@ -29,22 +29,27 @@ try {
     Fail "Failed to extract zip: $ZipPath. $_"
 }
 
-# Pick package folder (dir containing index.html). Our zips have a top-level folder.
-$PkgDir = Get-ChildItem -LiteralPath $TmpRoot -Directory | Select-Object -First 1
-if (-not $PkgDir) { 
-    # maybe files are at root
-    if (Test-Path (Join-Path $TmpRoot 'index.html')) {
-        $PkgDir = Get-Item $TmpRoot
-    } else {
-        Fail "Couldn’t find extracted package folder with index.html"
+# --- Select the extracted package folder that actually contains index.html ---
+# 1) If index.html is at the extraction root, use that.
+if (Test-Path -LiteralPath (Join-Path $TmpRoot 'index.html')) {
+    $PkgDir = Get-Item -LiteralPath $TmpRoot
+} else {
+    # 2) Search all immediate subfolders for index.html
+    $PkgDir = Get-ChildItem -LiteralPath $TmpRoot -Directory |
+        Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'index.html') } |
+        Select-Object -First 1
+
+    # 3) If still not found, search deeper just in case
+    if (-not $PkgDir) {
+        $PkgDir = Get-ChildItem -LiteralPath $TmpRoot -Recurse -Directory |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'index.html') } |
+            Select-Object -First 1
+    }
+
+    if (-not $PkgDir) {
+        Fail "Couldn’t find any extracted folder containing index.html"
     }
 }
-# sanity: ensure index.html exists in selected folder
-if (-not (Test-Path (Join-Path $PkgDir.FullName 'index.html'))) {
-    Fail "index.html not found in package: $($PkgDir.FullName)"
-}
-# extra sanity: never copy from drive root
-if ($PkgDir.FullName -match '^[A-Za-z]:\\$') { Fail "Safety stop: resolved package is drive root ($($PkgDir.FullName))" }
 
 # Keep only repo meta files
 $Keep = @('.git', '.gitignore', 'README.md', 'deploy.ps1', 'deploy.bat')
