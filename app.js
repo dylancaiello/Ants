@@ -1,4 +1,4 @@
-// Ants v6.10 DEBUG — splat/stain + pitch variety — curved/wandering ants + v6.8.1 features
+// Ants v6.9 DEBUG — curved/wandering ants + v6.8.1 features
 (function(){
   const debug=document.getElementById('debug');
   const log=(...a)=>{ if(debug){ debug.textContent += a.join(' ') + "\n"; } console.log('[Ants]', ...a); };
@@ -23,96 +23,15 @@
   const comboFill=document.getElementById('comboFill');
   const toast=document.getElementById('toast');
   const spritesLayer=document.getElementById('sprites');
-  const belowSprites=document.getElementById('belowSprites');
-  const aboveSprites=document.getElementById('aboveSprites');
   const cakeSprite=document.getElementById('cakeSprite');
   const healthFg=document.getElementById('healthFg');
-  // Debug: force UI/button to receive clicks and add global logging
-  try{
-    const ui = document.getElementById('ui');
-    if(ui){ ui.style.pointerEvents = 'auto'; ui.style.zIndex = '9998'; }
-    if(startBtn){
-      startBtn.style.pointerEvents = 'auto';
-      startBtn.style.zIndex = '9999';
-      startBtn.style.position = 'absolute';
-    }
-    document.addEventListener('click', (e)=>{
-      try{
-        if(debug) debug.textContent += `[click] ${e.target.id || e.target.tagName}\n`;
-      }catch(_e){}
-    }, {capture:true});
-    startBtn && startBtn.addEventListener('pointerdown', (e)=>{
-      try{
-        if(debug) debug.textContent += `startBtn pointerdown\n`;
-      }catch(_e){}
-    });
-    // Also log elementFromPoint at button center
-    setTimeout(()=>{
-      if(startBtn){
-        const rect = startBtn.getBoundingClientRect();
-        const cx = Math.round(rect.left + rect.width/2);
-        const cy = Math.round(rect.top + rect.height/2);
-        const el = document.elementFromPoint(cx, cy);
-        if(debug) debug.textContent += `[probe] elementFromPoint over start: ${el ? (el.id || el.tagName) : 'null'}\n`;
-      }
-    }, 300);
-  }catch(_e){}
-
-  // Fallback: robust starter in case original listener is blocked
-  window._startGameFallback = function(){
-    try{
-      if(!ac) initAudio(); else if(ac.state==='suspended') ac.resume();
-      if(typeof running==='boolean' && typeof gameOver==='boolean'){
-        if(!running && !gameOver){ startBtn && (startBtn.style.display='none'); reset && reset(); return; }
-        if(gameOver && cakeHP>0){ gameOver=false; running=true; startBtn && (startBtn.textContent='Next Wave'); startBtn && (startBtn.style.display='none'); return; }
-        if(gameOver && cakeHP<=0){ startBtn && (startBtn.style.display='none'); reset && reset(); return; }
-      }
-      // minimal reset if symbols missing
-      startBtn && (startBtn.style.display='none');
-    }catch(e){ console && console.error('Fallback start error', e); }
-  };
-  // Always ensure a click binding exists
-  try{ startBtn && startBtn.addEventListener('click', window._startGameFallback); }catch(_e){}
-
-  function spawnEffect(layer, src, x, y, lifeMs){
-    const el = document.createElement('img');
-    el.src = src;
-    el.alt = '';
-    el.style.position = 'absolute';
-    el.style.width = '64px'; el.style.height = '64px';
-    el.style.left = (x - 32) + 'px';
-    el.style.top  = (y - 32) + 'px';
-    const rot = (Math.random()*360).toFixed(1);
-    el.style.transform = 'rotate('+rot+'deg)';
-    el.style.opacity = '0';
-    el.style.transition = 'opacity 80ms ease-out, transform '+lifeMs+'ms ease-out';
-    layer.appendChild(el);
-    requestAnimationFrame(()=> { el.style.opacity='1'; });
-    setTimeout(()=>{ el.style.opacity='0'; }, Math.max(60, lifeMs-120));
-    setTimeout(()=>{ el.remove(); }, lifeMs+60);
-  }
-  function spawnStain(x,y){ spawnEffect(belowSprites, 'assets/stain.png', x, y, 1200); }
-  function spawnSplat(x,y){ spawnEffect(aboveSprites, 'assets/splat.png', x, y, 600); }
-
 
   let ac, popBuf=null;
   function initAudio(){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(_e){ ac=null; }
     if(!ac) return;
     fetch('assets/pop.mp3').then(r=>r.arrayBuffer()).then(ab=>ac.decodeAudioData(ab)).then(buf=>{ popBuf=buf; log('audio decoded'); }).catch(()=>{});
   }
-  function playPop(){ 
-    try{
-      if(!popBuf||!ac) return;
-      if(ac.state==='suspended') ac.resume();
-      const s=ac.createBufferSource(); s.buffer=popBuf;
-      const cents = (Math.random()*400)-200; // ±200 cents
-      const rate = Math.pow(2, cents/1200);
-      s.playbackRate.value = rate;
-      const g=ac.createGain(); g.gain.value=0.8;
-      s.connect(g); g.connect(ac.destination);
-      s.start(0);
-    }catch(_e){ /* ignore */ }
-  } }
+  function playPop(){ if(popBuf && ac && ac.state!=='suspended'){ const s=ac.createBufferSource(); s.buffer=popBuf; const g=ac.createGain(); g.gain.value=0.7; s.connect(g); g.connect(ac.destination); s.start(0); } }
 
   let W=0,H=0,CX=0,CY=0, arenaRadius=0, cakeRadius=60;
   function resize(){ W=innerWidth; H=innerHeight; CX=W*0.5; CY=H*0.5;
@@ -179,9 +98,7 @@
     const r=canvas.getBoundingClientRect(); const px=(e.clientX-r.left); const py=(e.clientY-r.top);
     if(!running||gameOver) return; let hit=false;
     for(const a of ants){ if(!a.alive) continue; const dx=a.x-px, dy=a.y-py; if(dx*dx+dy*dy<=TAP_RADIUS*TAP_RADIUS){ a.alive=false; hit=true;
-          spawnStain(a.x, a.y);
           bumpCombo(); const gain = combo; score += gain; playPop(); blip(a.x, a.y, '+'+gain);
-          spawnSplat(a.x, a.y);
           if(a.el){ a.el.classList.add('squash'); setTimeout(()=> a.el.remove(), 200); }
     } }
     if(hit) updateHUD();
@@ -243,11 +160,3 @@
     updateHUD();
   }
 })();
-  // Hard-bind click with explicit log (debug)
-  try{
-    startBtn.onclick = function(){
-      console.log('START CLICK (hard-bind)');
-      if(debug) debug.textContent += 'START CLICK (hard-bind)\n';
-      window._startGameFallback && window._startGameFallback();
-    };
-  }catch(_e){}
