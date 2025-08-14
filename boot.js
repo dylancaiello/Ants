@@ -130,7 +130,7 @@
     try{
       const verEl = document.getElementById('ver'); if(!verEl) return;
       const params = new URLSearchParams(location.search);
-      const v = params.get('v') || 'v6.10 debug';
+      const v = params.get('v') || '6.10 DEBUG fixN';
       let cb = params.get('cb');
       if(!cb){
         const scr = document.querySelector('script[src*="boot.js"]');
@@ -143,3 +143,30 @@
       verEl.textContent = v + " | cb:" + (cb||'n/a') + " | " + hh + ":" + mm + ":" + ss;
     }catch(_e){}
   })();
+
+  // --- Robust Start fallback: ensure game starts even if original listener fails ---
+  (function(){
+    const btn = document.getElementById('startBtn');
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+      try{
+        // Prefer game's own handler; if it didn't run, do a minimal start
+        if(typeof window.reset === 'function'){
+          // Mirror the game's own start sequence
+          if(typeof window.ac !== 'undefined' && ac && ac.state==='suspended'){ try{ ac.resume(); }catch(_e){} }
+          btn.style.display='none';
+          // Set flags if present
+          try{ window.gameOver=false; window.running=true; }catch(_e){}
+          window.reset();
+        } else {
+          // Minimal fallback: hide button so waves can spawn if logic allows
+          btn.style.display='none';
+        }
+      }catch(_e){}
+    }, {capture:false});
+  })();
+
+  try{
+    const ui=document.getElementById('ui');
+    if(ui){ ui.style.pointerEvents='auto'; }
+  }catch(_e){}
