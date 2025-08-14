@@ -128,15 +128,14 @@
   // --- Update version badge with query 'v' and cb for easy cache checks ---
   (function updateBadge(){
   try{
-    const verEl = document.getElementById('ver'); if(!verEl) return;
-    const params = new URLSearchParams(location.search);
-    let v = params.get('v') || '6.10 DEBUG fixS';
-    try{ v = decodeURIComponent(v.replace(/\+/g,' ')); }catch(_e){}
-    const cb = params.get('cb') || 'n/a';
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2,'0');
-    const mm = String(now.getMinutes()).padStart(2,'0');
-    const ss = String(now.getSeconds()).padStart(2,'0');
+    var verEl = document.getElementById('ver'); if(!verEl) return;
+    var p = new URLSearchParams(location.search);
+    var v = p.get('v') || '6.10 DEBUG fixU';
+    var cb = p.get('cb') || 'n/a';
+    var now = new Date();
+    var hh = String(now.getHours()).padStart(2,'0');
+    var mm = String(now.getMinutes()).padStart(2,'0');
+    var ss = String(now.getSeconds()).padStart(2,'0');
     verEl.textContent = v + " | cb:" + cb + " | " + hh + ":" + mm + ":" + ss;
   }catch(_e){}
 })();
@@ -215,4 +214,33 @@
       }, 250);
     }catch(_e){}
   }, {capture:false});
+})();
+// --- Start fallback and ant assurance (fixU) ---
+(function(){
+  try{
+    var btn = document.getElementById('startBtn');
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+      try{
+        var d=document.getElementById('debug'); if(d) d.textContent += "[boot] start fallback fixU\n";
+        try{ if(window.ac && ac.state==='suspended') ac.resume(); }catch(_e){}
+        btn.style.display='none';
+        try{ window.running=true; window.gameOver=false; }catch(_e){}
+        if(typeof window.reset==='function'){ window.reset(); }
+        // After a short delay, if no ants are present, force spawns
+        setTimeout(function assure(){
+          try{
+            var sprites = document.getElementById('sprites');
+            var anyAnt = sprites && sprites.querySelector('img[src*="ant.png"]');
+            if(!anyAnt){
+              if(typeof window.spawnBurst==='function'){
+                var d=document.getElementById('debug'); if(d) d.textContent += "[boot] forcing spawnBurst\n";
+                window.spawnBurst(); window.spawnBurst(); window.spawnBurst();
+              }
+            }
+          }catch(_e){}
+        }, 250);
+      }catch(_e){}
+    }, {capture:false});
+  }catch(_e){}
 })();
