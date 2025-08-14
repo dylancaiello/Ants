@@ -1,5 +1,16 @@
 
 (function(){
+  // Force-unregister any service workers to avoid stale caches
+  try{
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.getRegistrations && navigator.serviceWorker.getRegistrations().then(regs=>{
+        var n = regs.length;
+        regs.forEach(r=>r.unregister());
+        try{ if(n>0){ const d=document.getElementById('debug'); if(d) d.textContent += `[boot] unregistered SWs: ${n}\n`; } }catch(_e){}
+        if(n>0){ setTimeout(()=> location.reload(), 50); }
+      });
+    }
+  }catch(_e){}
   const log = (s)=>{ try{ const d=document.getElementById('debug'); if(d) d.textContent += s + "\n"; }catch(e){} };
   // Audio
   let ac=null, popBuf=null;
