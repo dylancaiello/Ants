@@ -1,4 +1,4 @@
-// Ants v6.7 DEBUG — SW policy (debug off / clean on), 50 HP health bar, score HUD & combo, APNG DOM sprites, WebAudio pop
+// Ants v6.8 DEBUG — dmg=2, score=combo, smaller health bar, cake flash & edge hit, ant collision
 (function(){
 
   const debug=document.getElementById('debug');
@@ -6,15 +6,15 @@
   window.onerror=(m,s,l,c,e)=>{ log('ERROR:', m, '@', s, l+':'+c); };
 
 
-  // DEBUG: actively unregister any existing service workers
+  // DEBUG: unregister any SW
   if('serviceWorker' in navigator){
     navigator.serviceWorker.getRegistrations && navigator.serviceWorker.getRegistrations().then(regs=>{
-      regs.forEach(r=>{ r.unregister(); });
+      regs.forEach(r=>r.unregister());
       log('DEBUG: unregistered SWs:', regs.length);
     });
   }
 
-  log('boot v6.7 DEBUG');
+  log('boot v6.8 DEBUG');
 
   const DPR=Math.min(3, devicePixelRatio||1);
   const canvas=document.getElementById('game');
@@ -31,7 +31,7 @@
   const cakeSprite=document.getElementById('cakeSprite');
   const healthFg=document.getElementById('healthFg');
 
-  // WebAudio preloading
+  // Audio
   let ac, popBuf=null;
   function initAudio(){ try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(_e){ ac=null; }
     if(!ac) return;
@@ -39,7 +39,7 @@
   }
   function playPop(){ if(popBuf && ac && ac.state!=='suspended'){ const s=ac.createBufferSource(); s.buffer=popBuf; const g=ac.createGain(); g.gain.value=0.7; s.connect(g); g.connect(ac.destination); s.start(0); } }
 
-  let W=0,H=0,CX=0,CY=0, arenaRadius=0;
+  let W=0,H=0,CX=0,CY=0, arenaRadius=0, cakeRadius=60;
   function resize(){ W=innerWidth; H=innerHeight; CX=W*0.5; CY=H*0.5;
     canvas.width=W*DPR; canvas.height=H*DPR; canvas.style.width=W+'px'; canvas.style.height=H+'px';
     ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -48,8 +48,8 @@
     cakeSprite.style.width = cakeSize + 'px';
     cakeSprite.style.height = 'auto';
     cakeSprite.style.left = '50%'; cakeSprite.style.top = '50%';
-    // position health bar ~80px under cake center (already in CSS), adjust width responsively via CSS
-    log('resize', W, H, 'arena', arenaRadius.toFixed(1), 'cake', cakeSize);
+    cakeRadius = cakeSize * 0.48; // hit roughly at cake edge
+    log('resize', W, H, 'arena', arenaRadius.toFixed(1), 'cake', cakeSize, 'cakeRadius', cakeRadius.toFixed(1));
   }
   addEventListener('resize', resize, {passive:true}); resize();
 
@@ -58,17 +58,22 @@
   const ants=[]; const TAP_RADIUS=32;
   let waveTotal=10, spawned=0, spawnTimer=0.4+Math.random()*0.4;
 
-  // Combo
-  let combo=1, comboTimer=0, COMBO_WINDOW=1.2; // seconds until combo resets
+  // Combo logic
+  let combo=1, comboTimer=0, COMBO_WINDOW=1.2;
   function bumpCombo(){ const now=performance.now()/1000;
     if(now - comboTimer <= COMBO_WINDOW) combo++; else combo=1;
     comboTimer = now;
     comboLabel.textContent='Combo x'+combo;
-    const pct = Math.min(1, (COMBO_WINDOW - (now - comboTimer)) / COMBO_WINDOW);
-    comboFill.style.width = (pct*100)+'%';
+    comboFill.style.width = '100%'; // refill on hit
   }
-  function tickCombo(dt){ if(combo>1){ const remaining = Math.max(0, COMBO_WINDOW - ((performance.now()/1000) - comboTimer)); comboFill.style.width = (remaining/COMBO_WINDOW*100)+'%'; if(remaining<=0) combo=1, comboLabel.textContent='Combo x1'; } }
+  function tickCombo(dt){ if(combo>1 or combo==1){ // always show decay fill
+      const elapsed = Math.max(0, (performance.now()/1000) - comboTimer);
+      const rem = Math.max(0, COMBO_WINDOW - elapsed);
+      comboFill.style.width = (rem/COMBO_WINDOW*100)+'%';
+      if(rem<=0) combo=1, comboLabel.textContent='Combo x1';
+  } }
 
+  // Ant creation
   function makeAnt(){ const ang=Math.random()*Math.PI*2; const r=arenaRadius+40+Math.random()*30;
     const x=CX+Math.cos(ang)*r; const y=CY+Math.sin(ang)*r; const speed=70+Math.random()*40+wave*6;
     const el=document.createElement('img'); el.src='assets/ant.png'; el.className='sprite ant'; el.alt='ant'; el.style.width='64px'; el.style.height='64px'; spritesLayer.appendChild(el);
@@ -98,25 +103,41 @@
 
   function handlePointer(e){ if(!ac) initAudio(); else if(ac.state==='suspended') ac.resume();
     const r=canvas.getBoundingClientRect(); const px=(e.clientX-r.left); const py=(e.clientY-r.top);
-    log('tap', px|0, py|0, 'running', running, 'gameOver', gameOver);
     if(!running||gameOver) return; let hit=false;
     for(const a of ants){ if(!a.alive) continue; const dx=a.x-px, dy=a.y-py; if(dx*dx+dy*dy<=TAP_RADIUS*TAP_RADIUS){ a.alive=false; hit=true;
+          bumpCombo(); const gain = combo; score += gain; playPop(); blip(a.x, a.y, '+'+gain);
           if(a.el){ a.el.classList.add('squash'); setTimeout(()=> a.el.remove(), 200); }
-          bumpCombo(); const gain = 1; score += gain; playPop(); blip(a.x, a.y, '+'+gain);
     } }
     if(hit) updateHUD();
   }
   canvas.addEventListener('pointerdown',(e)=>{ e.preventDefault(); handlePointer(e); },{passive:false});
 
-  startBtn.addEventListener('click', ()=>{ if(!ac) initAudio(); else if(ac.state==='suspended') ac.resume(); log('startBtn click', 'running', running, 'gameOver', gameOver);
+  startBtn.addEventListener('click', ()=>{ if(!ac) initAudio(); else if(ac.state==='suspended') ac.resume();
     if(!running && !gameOver){ startBtn.style.display='none'; reset(); }
     else if(gameOver && cakeHP>0){ gameOver=false; running=true; wave++; waveTotal=Math.floor(10+(wave-1)*1.5); spawned=0; spawnTimer=0.35+Math.random()*0.4; updateHUD(); startBtn.style.display='none'; }
     else if(gameOver && cakeHP<=0){ startBtn.style.display='none'; reset(); }
   });
 
+  // Physics helpers
+  function antSeparation(dt){ const MIN_DIST=38; const PUSH=120; // px/sec correction
+    for(let i=0;i<ants.length;i++){ const a=ants[i]; if(!a.alive) continue;
+      for(let j=i+1;j<ants.length;j++){ const b=ants[j]; if(!b.alive) continue;
+        const dx=b.x-a.x, dy=b.y-a.y; const d2=dx*dx+dy*dy; const min2=MIN_DIST*MIN_DIST;
+        if(d2>0 && d2<min2){ const d=Math.sqrt(d2)||1; const overlap=(MIN_DIST-d); const nx=dx/d, ny=dy/d;
+          // push them apart equally
+          a.x -= nx*overlap*0.5; a.y -= ny*overlap*0.5;
+          b.x += nx*overlap*0.5; b.y += ny*overlap*0.5;
+          // slight angle tweak so they steer around
+          a.angle = Math.atan2((CY-a.y), (CX-a.x));
+          b.angle = Math.atan2((CY-b.y), (CX-b.x));
+        }
+      }
+    }
+  }
+
   let last=performance.now();
   function frame(now){ const dt=Math.min(0.03,(now-last)/1000); last=now;
-    try{ drawBG(); drawArena(); positionSprites(); if(running&&!gameOver){ spawnWaveIfNeeded(dt); tickAnts(dt); } tickCombo(dt); }catch(err){ log('ERROR in frame:', err && err.message ? err.message : String(err)); }
+    try{ drawBG(); drawArena(); positionSprites(); if(running&&!gameOver){ spawnWaveIfNeeded(dt); antSeparation(dt); tickAnts(dt); } tickCombo(dt); }catch(err){ log('ERROR in frame:', err && err.message ? err.message : String(err)); }
     requestAnimationFrame(frame);
   } requestAnimationFrame(frame);
 
@@ -126,9 +147,15 @@
 
   function positionSprites(){ for(const a of ants){ if(!a.el) continue; a.el.style.left = a.x+'px'; a.el.style.top = a.y+'px'; a.el.style.transform = 'translate(-50%,-50%) rotate(' + (a.angle*180/Math.PI + 90) + 'deg)'; } }
 
-  function tickAnts(dt){ for(const a of ants){ if(!a.alive) continue; const dx=CX-a.x, dy=CY-a.y; const len=Math.hypot(dx,dy)||1;
+  function tickAnts(dt){ const BITE_DMG=2;
+    for(const a of ants){ if(!a.alive) continue; const dx=CX-a.x, dy=CY-a.y; const len=Math.hypot(dx,dy)||1;
+      // steer inward
       a.x += (dx/len)*a.speed*dt; a.y += (dy/len)*a.speed*dt; a.angle=Math.atan2(dy,dx);
-      const d=Math.hypot(a.x-CX, a.y-CY); if(d<=36){ a.alive=false; if(a.el) a.el.remove(); cakeHP--; 
+      const d=Math.hypot(a.x-CX, a.y-CY);
+      if(d<=cakeRadius){ // bite at cake edge
+        a.alive=false; if(a.el) a.el.remove();
+        cakeHP = Math.max(0, cakeHP - BITE_DMG);
+        cakeSprite.classList.add('hurt'); setTimeout(()=>cakeSprite.classList.remove('hurt'), 120);
         toast.textContent='They got a bite!'; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),600);
         if(cakeHP<=0){ gameOver=true; running=false; startBtn.textContent='Restart'; startBtn.style.display='block'; }
       }
