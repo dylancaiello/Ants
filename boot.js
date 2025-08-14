@@ -127,21 +127,19 @@
 })();
   // --- Update version badge with query 'v' and cb for easy cache checks ---
   (function updateBadge(){
-    try{
-      const verEl = document.getElementById('ver'); if(!verEl) return;
-      const params = new URLSearchParams(location.search);
-      const v = params.get('v') || '6.10 DEBUG';
-      let cb = params.get('cb');
-      if(!cb){
-        const scr = document.querySelector('script[src*="boot.js"]');
-        if(scr){ try{ cb = new URL(scr.src, location.href).searchParams.get('cb'); }catch(_e){} }
-      }
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2,'0');
-      const mm = String(now.getMinutes()).padStart(2,'0');
-      verEl.textContent = v + " | cb:" + (cb||'n/a') + " | " + hh + ":" + mm;
-    }catch(_e){}
-  })();
+  try{
+    const verEl = document.getElementById('ver'); if(!verEl) return;
+    const params = new URLSearchParams(location.search);
+    let v = params.get('v') || '6.10 DEBUG fixS';
+    try{ v = decodeURIComponent(v.replace(/\+/g,' ')); }catch(_e){}
+    const cb = params.get('cb') || 'n/a';
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    const ss = String(now.getSeconds()).padStart(2,'0');
+    verEl.textContent = v + " | cb:" + cb + " | " + hh + ":" + mm + ":" + ss;
+  }catch(_e){}
+})();
 
   // --- Robust Start fallback: ensure game starts even if original listener fails ---
   (function(){
@@ -184,3 +182,37 @@
     }, {capture:false});
   })();
     
+// Strong start fallback fixS
+(function(){
+  const btn = document.getElementById('startBtn');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    try{
+      const dbg = document.getElementById('debug');
+      if(dbg) dbg.textContent += "[boot] start fallback fixS\n";
+      // Ensure layers click-through
+      try{
+        const sp = document.getElementById('sprites'); if(sp) sp.style.pointerEvents='none';
+        const bs = document.getElementById('belowSprites'); if(bs) bs.style.pointerEvents='none';
+        const as = document.getElementById('aboveSprites'); if(as) as.style.pointerEvents='none';
+        const ui = document.getElementById('ui'); if(ui) ui.style.pointerEvents='auto';
+      }catch(_e){}
+      // Hide button
+      btn.style.display='none';
+      // Try to start via game API
+      if(typeof window.ac!=='undefined' && ac && ac.state==='suspended'){ try{ ac.resume(); }catch(_e){} }
+      if(typeof window.reset==='function'){ window.reset(); }
+      // After a short delay, if no ants present, force spawns
+      setTimeout(function(){
+        const spriteLayer = document.getElementById('sprites');
+        const antImgs = spriteLayer ? spriteLayer.querySelectorAll('img[src*=\"ant\"]').length : 0;
+        if(antImgs===0 && typeof window.spawnBurst==='function'){
+          if(dbg) dbg.textContent += "[boot] no ants detected — forcing spawn\n";
+          try{ window.spawnBurst(); }catch(_e){}
+          setTimeout(()=>{ try{ window.spawnBurst(); }catch(_e){} }, 150);
+          setTimeout(()=>{ try{ window.spawnBurst(); }catch(_e){} }, 300);
+        }
+      }, 250);
+    }catch(_e){}
+  }, {capture:false});
+})();
