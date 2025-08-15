@@ -22,7 +22,7 @@ echo ZIP: "%ZIP%"
 echo SCRIPT: "%SCRIPT%"
 echo.
 
-REM --- Unblock files (avoid SmartScreen zone issues) ---
+REM --- Unblock files ---
 powershell -NoLogo -NoProfile -Command ^
   "foreach($p in @('%SCRIPT%','%ZIP%')){ if(Test-Path $p){ try{ Unblock-File -LiteralPath $p -ErrorAction SilentlyContinue }catch{} } }"
 
