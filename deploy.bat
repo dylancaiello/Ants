@@ -26,13 +26,31 @@ REM --- Unblock files ---
 powershell -NoLogo -NoProfile -Command ^
   "foreach($p in @('%SCRIPT%','%ZIP%')){ if(Test-Path $p){ try{ Unblock-File -LiteralPath $p -ErrorAction SilentlyContinue }catch{} } }"
 
-REM --- Run the PowerShell deploy (no browser opening here) ---
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" "%ZIP%"
+REM --- Prepare a persistent log file ---
+set "LOG=%TEMP%\ants_deploy_%RANDOM%%RANDOM%.log"
+echo Writing log to: %LOG%
+
+REM --- Run the PowerShell deploy and capture ALL output ---
+set "ANTS_LOG=%LOG%"
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$env:ANTS_LOG=$env:ANTS_LOG; & '%SCRIPT%' '%ZIP%'; exit $LASTEXITCODE" 1>>"%LOG%" 2>&1
+
 if errorlevel 1 (
+  echo.
+  echo ===== DEPLOY LOG (error) =====
+  type "%LOG%"
+  echo ===== END LOG =====
+  echo.
   echo Deploy failed. Press any key to exit.
   pause
   exit /b 1
 )
+
+echo.
+echo ===== DEPLOY LOG (success) =====
+type "%LOG%"
+echo ===== END LOG =====
+echo.
 
 REM --- Read VERSION.txt inside the ZIP (fallback to filename) ---
 for /f "usebackq delims=" %%V in (`
