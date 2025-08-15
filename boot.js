@@ -128,16 +128,16 @@
   // --- Update version badge with query 'v' and cb for easy cache checks ---
   (function updateBadge(){
   try{
-    var verEl = document.getElementById('ver'); if(!verEl) return;
-    var p = new URLSearchParams(location.search);
-    var v = p.get('v') || '6.10 DEBUG fixU';
-    var cb = p.get('cb') || 'n/a';
-    var now = new Date();
-    var hh = String(now.getHours()).padStart(2,'0');
-    var mm = String(now.getMinutes()).padStart(2,'0');
-    var ss = String(now.getSeconds()).padStart(2,'0');
+    const verEl = document.getElementById('ver'); if(!verEl) return;
+    const qp = new URLSearchParams(location.search);
+    let v = qp.get('v') || '6.10 DEBUG fixV';
+    let cb = qp.get('cb') || 'n/a';
+    const now = new Date();
+    const hh = now.getHours().toString().padStart(2,'0');
+    const mm = now.getMinutes().toString().padStart(2,'0');
+    const ss = now.getSeconds().toString().padStart(2,'0');
     verEl.textContent = v + " | cb:" + cb + " | " + hh + ":" + mm + ":" + ss;
-  }catch(_e){}
+  }catch(e){}
 })();
 
   // --- Robust Start fallback: ensure game starts even if original listener fails ---
@@ -243,4 +243,31 @@
       }catch(_e){}
     }, {capture:false});
   }catch(_e){}
+})();
+// --- fixV start guard ---
+(function(){
+  const btn=document.getElementById('startBtn');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    try{
+      const d=document.getElementById('debug'); if(d) d.textContent += "[boot] start fallback fixV\n";
+      btn.style.display='none';
+      if(typeof window.ac!=='undefined' && ac && ac.state==='suspended'){ try{ ac.resume(); }catch(e){} }
+      if(typeof window.reset==='function'){ try{ window.reset(); }catch(e){} }
+      // After a short delay, ensure ants exist; if not, force-spawn 3 bursts.
+      setTimeout(()=>{
+        let hasAnts = false;
+        try{
+          const q = document.querySelector('#sprites img[src*="ant"]');
+          hasAnts = !!q;
+        }catch(_e){}
+        if(!hasAnts && typeof window.spawnBurst==='function'){
+          const d=document.getElementById('debug'); if(d) d.textContent += "[boot] no ants detected — forcing spawn\n";
+          try{ window.spawnBurst(); }catch(e){}
+          setTimeout(()=>{ try{ window.spawnBurst(); }catch(e){} }, 150);
+          setTimeout(()=>{ try{ window.spawnBurst(); }catch(e){} }, 300);
+        }
+      }, 300);
+    }catch(_e){}
+  }, {capture:false});
 })();

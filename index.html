@@ -33,6 +33,24 @@
     .blip{ position:absolute; left:0; top:0; transform:translate(-50%,-50%); font-weight:800; color:#ffe082; text-shadow:0 2px 6px #0008; pointer-events:auto; opacity:0; transition:opacity .18s, transform .36s }
     .blip.show{ opacity:1; transform:translate(-50%,-120%) }
   </style>
+
+  <script id="antsScriptLoader">
+  (function(){
+    try{
+      var params = new URLSearchParams(location.search);
+      var cb = params.get('cb');
+      function add(src){
+        if(cb){ src += (src.indexOf('?')>-1?'&':'?') + 'cb=' + encodeURIComponent(cb); }
+        var s=document.createElement('script'); s.src=src; s.defer=true; document.head.appendChild(s);
+      }
+      // Remove any existing boot/app tags if present (to avoid double load)
+      var olds=[].slice.call(document.querySelectorAll('script[src*="boot.js"],script[src*="app.js"]'));
+      olds.forEach(function(n){ n.parentNode.removeChild(n); });
+      add('boot.js');
+      add('app.js');
+    }catch(e){}
+  })();
+  </script>
 </head>
 <body>
   <div id="wrapper">
