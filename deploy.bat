@@ -22,18 +22,14 @@ echo ZIP: "%ZIP%"
 echo SCRIPT: "%SCRIPT%"
 echo.
 
-REM --- Unblock files ---
+REM --- Unblock files (prevents SmartScreen/Zone issues) ---
 powershell -NoLogo -NoProfile -Command ^
   "foreach($p in @('%SCRIPT%','%ZIP%')){ if(Test-Path $p){ try{ Unblock-File -LiteralPath $p -ErrorAction SilentlyContinue }catch{} } }"
 
-REM --- Prepare a persistent log file ---
+REM --- Run deploy.ps1 and capture ALL output to a log ---
 set "LOG=%TEMP%\ants_deploy_%RANDOM%%RANDOM%.log"
-echo Writing log to: %LOG%
-
-REM --- Run the PowerShell deploy and capture ALL output ---
 set "ANTS_LOG=%LOG%"
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$env:ANTS_LOG=$env:ANTS_LOG; & '%SCRIPT%' '%ZIP%'; exit $LASTEXITCODE" 1>>"%LOG%" 2>&1
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" "%ZIP%" 1>>"%LOG%" 2>&1
 
 if errorlevel 1 (
   echo.
