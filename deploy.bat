@@ -22,31 +22,33 @@ echo ZIP: "%ZIP%"
 echo SCRIPT: "%SCRIPT%"
 echo.
 
-REM --- Unblock files (prevents SmartScreen/Zone issues) ---
+REM --- Unblock files (avoid Zone.Identifier issues) ---
 powershell -NoLogo -NoProfile -Command ^
   "foreach($p in @('%SCRIPT%','%ZIP%')){ if(Test-Path $p){ try{ Unblock-File -LiteralPath $p -ErrorAction SilentlyContinue }catch{} } }"
 
-REM --- Run deploy.ps1 and capture ALL output to a log ---
+REM --- Run deploy and capture ALL output to a log ---
 set "LOG=%TEMP%\ants_deploy_%RANDOM%%RANDOM%.log"
 set "ANTS_LOG=%LOG%"
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" "%ZIP%" 1>>"%LOG%" 2>&1
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT%" "%ZIP%" 1>"%LOG%" 2>&1
+set "EXITCODE=%ERRORLEVEL%"
 
-if errorlevel 1 (
+echo.
+echo ===== DEPLOY LOG =====
+type "%LOG%"
+echo ===== END LOG =====
+echo Exit code: %EXITCODE%
+echo.
+
+REM --- Treat 'Deploy complete.' as success even if exitcode misreports ---
+set "FORCEOPEN="
+findstr /C:"Deploy complete." "%LOG%" >nul && set "FORCEOPEN=1"
+
+if not "%EXITCODE%"=="0" if not defined FORCEOPEN (
+  echo Deploy failed. See log above.
   echo.
-  echo ===== DEPLOY LOG (error) =====
-  type "%LOG%"
-  echo ===== END LOG =====
-  echo.
-  echo Deploy failed. Press any key to exit.
   pause
   exit /b 1
 )
-
-echo.
-echo ===== DEPLOY LOG (success) =====
-type "%LOG%"
-echo ===== END LOG =====
-echo.
 
 REM --- Read VERSION.txt inside the ZIP (fallback to filename) ---
 for /f "usebackq delims=" %%V in (`
@@ -65,7 +67,7 @@ for /f "usebackq delims=" %%V in (`
      $ver"
 `) do set "VER=%%V"
 
-REM --- Build URL with fresh cache-buster ---
+REM --- Build URL with fresh cache-buster and open ---
 set "VER=%VER: =+%"
 set "CB=%RANDOM%%RANDOM%"
 set "URL=https://dylancaiello.github.io/Ants/?v=%VER%&cb=%CB%"
